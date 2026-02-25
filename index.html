@@ -29,12 +29,21 @@
     <nav class="navbar" role="navigation">
         <div class="nav-inner">
             <div class="nav-brand">
-                <div class="brand-icon" aria-hidden="true">
-                    <span class="brand-dot d1"></span>
-                    <span class="brand-dot d2"></span>
-                    <span class="brand-dot d3"></span>
-                    <span class="brand-dot d4"></span>
-                </div>
+                <!-- Shape logo: polygon vertices = one per app. Updated by hub.js -->
+                <svg id="brand-logo" class="brand-logo" width="34" height="34" viewBox="0 0 34 34" fill="none"
+                    aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+                    <defs>
+                        <linearGradient id="logoEdge" x1="0" y1="0" x2="1" y2="1">
+                            <stop offset="0%" stop-color="#6C63FF" stop-opacity="0.7" />
+                            <stop offset="100%" stop-color="#FF6B95" stop-opacity="0.7" />
+                        </linearGradient>
+                    </defs>
+                    <!-- Polygon outline — points set by JS -->
+                    <polygon id="logo-poly" stroke="url(#logoEdge)" stroke-width="1.5" stroke-linejoin="round"
+                        fill="rgba(108,99,255,0.07)" />
+                    <!-- Vertex dots — populated by JS -->
+                    <g id="logo-dots"></g>
+                </svg>
                 <span class="brand-name">EverydAI</span>
             </div>
             <div class="nav-right">

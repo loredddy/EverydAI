@@ -81,6 +81,11 @@ body {
     will-change: transform;
 }
 
+.orbs-paused .orb {
+    animation-play-state: paused;
+    /* visibility: hidden would also work but paused is smoother on resume */
+}
+
 [data-theme="light"] .orb {
     opacity: 0.32;
 }
@@ -168,48 +173,35 @@ body {
     text-decoration: none;
 }
 
-.brand-icon {
-    width: 32px;
-    height: 32px;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
-    gap: 4px;
+/* SVG shape logo — vertices = app count (4 apps → square, 3 → triangle, etc.) */
+.brand-logo {
+    flex-shrink: 0;
+    overflow: visible;
+    /* Subtle slow spin to give life to the logo */
+    animation: logoSpin 24s linear infinite;
+    will-change: transform;
+    transform-origin: center;
 }
 
-.brand-dot {
-    border-radius: 50%;
-    animation: pulse-dot 3s ease-in-out infinite alternate;
-}
-
-.d1 {
-    background: #6C63FF;
-    animation-delay: 0s;
-}
-
-.d2 {
-    background: #FF6B95;
-    animation-delay: 0.4s;
-}
-
-.d3 {
-    background: #63FFD5;
-    animation-delay: 0.8s;
-}
-
-.d4 {
-    background: #FFD663;
-    animation-delay: 1.2s;
-}
-
-@keyframes pulse-dot {
+@keyframes logoSpin {
     from {
-        transform: scale(0.9);
-        opacity: 0.7;
+        transform: rotate(0deg);
     }
 
     to {
-        transform: scale(1.05);
+        transform: rotate(360deg);
+    }
+}
+
+/* Each vertex dot pops in on load */
+@keyframes logoDotPop {
+    from {
+        transform: scale(0);
+        opacity: 0;
+    }
+
+    to {
+        transform: scale(1);
         opacity: 1;
     }
 }
@@ -776,9 +768,9 @@ body {
     position: fixed;
     inset: 0;
     z-index: 500;
-    background: rgba(0, 0, 0, 0.7);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
+    /* Simple dark bg — backdrop-filter blur here is pointless (full-screen cover)
+       and was the main cause of sluggishness when stacked with the iframe blurs */
+    background: rgba(0, 0, 0, 0.78);
     display: flex;
     flex-direction: column;
     align-items: center;

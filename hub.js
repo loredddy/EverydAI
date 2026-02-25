@@ -34,13 +34,17 @@ function openApp(appSrc, appName) {
     openTab.href = appSrc;
     overlay.classList.add('open');
     document.body.style.overflow = 'hidden';
-    // Focus close button for accessibility
+    // Pause hub orb animations — they're invisible behind the overlay
+    // and removing them frees up significant GPU bandwidth for the iframe
+    document.querySelector('.bg-orbs').classList.add('orbs-paused');
     setTimeout(() => document.getElementById('panel-close-btn').focus(), 350);
 }
 
 function closeApp() {
     overlay.classList.remove('open');
     document.body.style.overflow = '';
+    // Resume hub orb animations
+    document.querySelector('.bg-orbs').classList.remove('orbs-paused');
     // Small delay before clearing src to allow animation
     setTimeout(() => { frame.src = ''; }, 400);
 }
@@ -120,5 +124,47 @@ function rotatePaletteThumb() {
 rotatePaletteThumb();
 setInterval(rotatePaletteThumb, 2800);
 
+// ── Shape Logo ───────────────────────────────────────────────
+// Draws a regular polygon with one vertex per app (live + coming-soon).
+// 3 apps → triangle, 4 → square, 5 → pentagon, etc.
+
+const LOGO_DOT_COLORS = ['#6C63FF', '#FF6B95', '#63FFD5', '#FFD663', '#FC5C65', '#45AAF2'];
+
+function getPolyPoints(n, cx, cy, r, startAngleDeg) {
+    const pts = [];
+    for (let i = 0; i < n; i++) {
+        const angle = (startAngleDeg + (360 / n) * i) * (Math.PI / 180);
+        pts.push([cx + r * Math.cos(angle), cy + r * Math.sin(angle)]);
+    }
+    return pts;
+}
+
+function drawShapeLogo() {
+    const totalApps = document.querySelectorAll('.app-card').length;
+    if (totalApps < 2) return;
+
+    const cx = 17, cy = 17, r = 13;
+    // Start at -90° so the shape is upright (flat top for even N, point-up for odd N)
+    const points = getPolyPoints(totalApps, cx, cy, r, -90);
+
+    // Set polygon outline
+    const poly = document.getElementById('logo-poly');
+    poly.setAttribute('points', points.map(p => p.join(',')).join(' '));
+
+    // Draw a colored circle at each vertex
+    const dotsGroup = document.getElementById('logo-dots');
+    dotsGroup.innerHTML = '';
+    points.forEach(([x, y], i) => {
+        const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        circle.setAttribute('cx', x.toFixed(2));
+        circle.setAttribute('cy', y.toFixed(2));
+        circle.setAttribute('r', '3.4');
+        circle.setAttribute('fill', LOGO_DOT_COLORS[i % LOGO_DOT_COLORS.length]);
+        circle.style.animation = `logoDotPop 0.5s cubic-bezier(0.34,1.56,0.64,1) ${i * 60}ms both`;
+        dotsGroup.appendChild(circle);
+    });
+}
+
 // ── Init ────────────────────────────────────────────────────
 applyTheme(currentTheme);
+drawShapeLogo();
