@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Palette Picker — Color Harmony Generator</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+
+    <!-- Background orbs -->
+    <div class="bg-orbs">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <main class="app">
+
+        <!-- Header -->
+        <header class="header">
+            <div class="header-top">
+                <div class="logo">
+                    <svg id="logo-svg" width="32" height="32" viewBox="0 0 32 32" fill="none">
+                        <g class="logo-dot lc-on" id="lc-0">
+                            <circle id="lcc-0" cx="9" cy="9" r="7" fill="var(--accent-1)" />
+                        </g>
+                        <g class="logo-dot lc-on" id="lc-1">
+                            <circle id="lcc-1" cx="23" cy="9" r="7" fill="var(--accent-2)" opacity="0.88" />
+                        </g>
+                        <g class="logo-dot lc-on" id="lc-2">
+                            <circle id="lcc-2" cx="16" cy="22" r="7" fill="var(--accent-3)" opacity="0.88" />
+                        </g>
+                        <g class="logo-dot" id="lc-3">
+                            <circle id="lcc-3" cx="9" cy="23" r="6" fill="#888" opacity="0.88" />
+                        </g>
+                        <g class="logo-dot" id="lc-4">
+                            <circle id="lcc-4" cx="16" cy="4" r="5.5" fill="#888" opacity="0.88" />
+                        </g>
+                    </svg>
+                    <span>Palette Picker</span>
+                </div>
+                <button class="theme-toggle" id="theme-toggle" title="Toggle light / dark theme">
+                    <span class="theme-icon" id="theme-icon">☀️</span>
+                </button>
+            </div>
+            <p class="tagline">Generate beautiful color harmonies, instantly.</p>
+        </header>
+
+        <!-- Controls row: Mode + Count picker -->
+        <div class="top-controls">
+            <!-- Harmony mode selector -->
+            <div class="mode-bar">
+                <button class="mode-btn active" data-mode="complementary">Complementary</button>
+                <button class="mode-btn" data-mode="triadic">Triadic</button>
+                <button class="mode-btn" data-mode="analogous">Analogous</button>
+                <button class="mode-btn" data-mode="split">Split-Comp</button>
+            </div>
+
+            <!-- Color count selector -->
+            <div class="count-bar">
+                <span class="count-label">Colors</span>
+                <div class="count-btns">
+                    <button class="count-btn" data-count="2">2</button>
+                    <button class="count-btn active" data-count="3">3</button>
+                    <button class="count-btn" data-count="4">4</button>
+                    <button class="count-btn" data-count="5">5</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mode description -->
+        <p class="mode-desc" id="mode-desc">Opposite hues</p>
+
+        <!-- Palette — populated dynamically by JS -->
+        <section class="palette" id="palette"></section>
+
+        <!-- Gradient preview -->
+        <div class="gradient-preview-wrap" id="gradient-preview-wrap">
+            <div class="gradient-preview-header">
+                <span class="gradient-label">Gradient Preview</span>
+                <div class="preview-mode-toggle">
+                    <button class="preview-mode-btn active" data-pmode="box" id="pmode-box">Box</button>
+                    <button class="preview-mode-btn" data-pmode="bg" id="pmode-bg">Background</button>
+                </div>
+            </div>
+            <div class="gradient-preview" id="gradient-preview"></div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button class="btn-generate" id="btn-generate">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="1 4 1 10 7 10" />
+                    <polyline points="23 20 23 14 17 14" />
+                    <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15" />
+                </svg>
+                Generate Palette
+            </button>
+            <button class="btn-export" id="btn-export">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Export CSS
+            </button>
+        </div>
+
+        <!-- CSS Export modal -->
+        <div class="modal-overlay" id="modal-overlay">
+            <div class="modal">
+                <div class="modal-header">
+                    <h2>CSS Variables</h2>
+                    <button class="modal-close" id="modal-close">✕</button>
+                </div>
+                <pre class="modal-code" id="modal-code"></pre>
+                <button class="btn-copy-all" id="btn-copy-all">Copy to Clipboard</button>
+            </div>
+        </div>
+
+        <!-- Toast -->
+        <div class="toast" id="toast">Copied! ✓</div>
+
+    </main>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

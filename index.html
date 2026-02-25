@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EverydAI — Your Creative Toolkit</title>
+    <meta name="description"
+        content="EverydAI is a hub of powerful mini-apps for designers and developers. Generate color palettes, and more." />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" href="hub.css" />
+</head>
+
+<body>
+
+    <!-- Animated background orbs -->
+    <div class="bg-orbs" aria-hidden="true">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+        <div class="orb orb-4"></div>
+    </div>
+
+    <!-- ── Navbar ── -->
+    <nav class="navbar" role="navigation">
+        <div class="nav-inner">
+            <div class="nav-brand">
+                <div class="brand-icon" aria-hidden="true">
+                    <span class="brand-dot d1"></span>
+                    <span class="brand-dot d2"></span>
+                    <span class="brand-dot d3"></span>
+                    <span class="brand-dot d4"></span>
+                </div>
+                <span class="brand-name">EverydAI</span>
+            </div>
+            <div class="nav-right">
+                <span class="nav-tagline">Your AI Toolkit</span>
+                <button class="theme-toggle" id="theme-toggle" title="Toggle theme"
+                    aria-label="Toggle dark/light theme">
+                    <span id="theme-icon">☀️</span>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- ── Hero ── -->
+    <section class="hero" aria-label="Hero">
+        <div class="hero-badge">✦ Open Source Toolkit</div>
+        <h1 class="hero-title">Build. Design. Create.</h1>
+        <p class="hero-subtitle">A collection of powerful AI-enhanced mini-apps for designers and developers. Pick a
+            tool and get to
+            work.</p>
+        <div class="hero-stats">
+            <div class="stat"><span class="stat-num" id="app-count">1</span><span class="stat-label">App</span></div>
+            <div class="stat-divider"></div>
+            <div class="stat"><span class="stat-num">∞</span><span class="stat-label">Possibilities</span></div>
+            <div class="stat-divider"></div>
+            <div class="stat"><span class="stat-num">Free</span><span class="stat-label">Always</span></div>
+        </div>
+    </section>
+
+    <!-- ── App Grid ── -->
+    <main class="apps-section">
+        <div class="section-header">
+            <h2 class="section-title">Apps</h2>
+            <span class="section-badge">1 Live · 3 Coming Soon</span>
+        </div>
+
+        <div class="app-grid" id="app-grid">
+
+            <!-- ── Palette Picker (LIVE) ── -->
+            <article class="app-card" id="card-palette" data-app="ColorPalette/index.html" tabindex="0" role="button"
+                aria-label="Launch Palette Picker app">
+                <div class="card-thumb palette-thumb">
+                    <div class="thumb-swatch s1"></div>
+                    <div class="thumb-swatch s2"></div>
+                    <div class="thumb-swatch s3"></div>
+                    <div class="thumb-swatch s4"></div>
+                    <div class="thumb-swatch s5"></div>
+                    <div class="thumb-gradient"></div>
+                </div>
+                <div class="card-body">
+                    <div class="card-meta">
+                        <span class="card-tag tag-design">🎨 Design</span>
+                        <span class="card-status status-live">● Live</span>
+                    </div>
+                    <h3 class="card-title">Palette Picker</h3>
+                    <p class="card-desc">Generate beautiful color harmonies — complementary, triadic, analogous, and
+                        more. Export as CSS variables instantly.</p>
+                    <button class="card-launch-btn" aria-label="Launch Palette Picker">
+                        <span>Launch App</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M5 12h14" />
+                            <path d="m12 5 7 7-7 7" />
+                        </svg>
+                    </button>
+                </div>
+            </article>
+
+            <!-- ── Coming Soon: Type Scale ── -->
+            <article class="app-card app-soon" aria-label="Type Scale Generator — coming soon" tabindex="-1">
+                <div class="card-thumb type-thumb">
+                    <div class="type-preview">
+                        <div class="tp-line l1">Aa</div>
+                        <div class="tp-line l2">Headline</div>
+                        <div class="tp-line l3">Body text</div>
+                        <div class="tp-line l4">Caption</div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="card-meta">
+                        <span class="card-tag tag-design">✏️ Design</span>
+                        <span class="card-status status-soon">◌ Soon</span>
+                    </div>
+                    <h3 class="card-title">Type Scale</h3>
+                    <p class="card-desc">Generate modular type scales for your UI. Preview in real-time and export as
+                        CSS or tokens.</p>
+                    <div class="coming-soon-pill">Coming Soon</div>
+                </div>
+            </article>
+
+            <!-- ── Coming Soon: Shadow Studio ── -->
+            <article class="app-card app-soon" aria-label="Shadow Studio — coming soon" tabindex="-1">
+                <div class="card-thumb shadow-thumb">
+                    <div class="shadow-box-preview">
+                        <div class="sbp-card"></div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="card-meta">
+                        <span class="card-tag tag-css">⚡ CSS</span>
+                        <span class="card-status status-soon">◌ Soon</span>
+                    </div>
+                    <h3 class="card-title">Shadow Studio</h3>
+                    <p class="card-desc">Craft beautiful box-shadows with a visual editor. Layer multiple shadows and
+                        copy the CSS in one click.</p>
+                    <div class="coming-soon-pill">Coming Soon</div>
+                </div>
+            </article>
+
+            <!-- ── Coming Soon: Gradient Forge ── -->
+            <article class="app-card app-soon" aria-label="Gradient Forge — coming soon" tabindex="-1">
+                <div class="card-thumb gradient-thumb">
+                    <div class="gt-layer l1"></div>
+                    <div class="gt-layer l2"></div>
+                    <div class="gt-layer l3"></div>
+                </div>
+                <div class="card-body">
+                    <div class="card-meta">
+                        <span class="card-tag tag-css">⚡ CSS</span>
+                        <span class="card-status status-soon">◌ Soon</span>
+                    </div>
+                    <h3 class="card-title">Gradient Forge</h3>
+                    <p class="card-desc">Design complex CSS gradients with multiple stops, angles, and blend modes.
+                        Export gradient-ready CSS instantly.</p>
+                    <div class="coming-soon-pill">Coming Soon</div>
+                </div>
+            </article>
+
+        </div>
+    </main>
+
+    <!-- ── Footer ── -->
+    <footer class="footer">
+        <p>EverydAI &mdash; crafted with ♥ &nbsp;·&nbsp; More apps coming soon</p>
+    </footer>
+
+    <!-- ── App Panel Overlay ── -->
+    <div class="app-panel-overlay" id="app-panel-overlay" role="dialog" aria-modal="true" aria-label="App panel">
+        <div class="app-panel" id="app-panel">
+            <div class="panel-toolbar">
+                <div class="panel-app-name" id="panel-app-name">App</div>
+                <div class="panel-toolbar-right">
+                    <a class="panel-open-tab" id="panel-open-tab" href="#" target="_blank" title="Open in new tab"
+                        aria-label="Open app in new tab">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                            <polyline points="15 3 21 3 21 9" />
+                            <line x1="10" y1="14" x2="21" y2="3" />
+                        </svg>
+                    </a>
+                    <button class="panel-close-btn" id="panel-close-btn" title="Close app (Esc)"
+                        aria-label="Close app panel">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="18" y1="6" x2="6" y2="18" />
+                            <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            <iframe class="app-frame" id="app-frame" src="" title="App" allow="clipboard-write"></iframe>
+        </div>
+    </div>
+
+    <script src="hub.js"></script>
+</body>
+
+</html>
