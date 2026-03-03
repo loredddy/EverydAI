@@ -63,7 +63,7 @@
         <p class="hero-subtitle">A small personal collection of tools I build in my spare time. Nothing serious, just
             experiments I find useful.</p>
         <div class="hero-stats">
-            <div class="stat"><span class="stat-num" id="app-count">1</span><span class="stat-label">App</span></div>
+            <div class="stat"><span class="stat-num" id="app-count">2</span><span class="stat-label">Apps</span></div>
             <div class="stat-divider"></div>
             <div class="stat"><span class="stat-num">∞</span><span class="stat-label">Possibilities</span></div>
             <div class="stat-divider"></div>
@@ -75,7 +75,7 @@
     <main class="apps-section">
         <div class="section-header">
             <h2 class="section-title">Apps</h2>
-            <span class="section-badge">1 Live · 3 Coming Soon</span>
+            <span class="section-badge">2 Live · 2 Coming Soon</span>
         </div>
 
         <div class="app-grid" id="app-grid">
@@ -110,25 +110,28 @@
                 </div>
             </article>
 
-            <!-- ── Coming Soon: Type Scale ── -->
-            <article class="app-card app-soon" aria-label="Type Scale Generator — coming soon" tabindex="-1">
-                <div class="card-thumb type-thumb">
-                    <div class="type-preview">
-                        <div class="tp-line l1">Aa</div>
-                        <div class="tp-line l2">Headline</div>
-                        <div class="tp-line l3">Body text</div>
-                        <div class="tp-line l4">Caption</div>
-                    </div>
+            <!-- ── Pattern Generator (LIVE) ── -->
+            <article class="app-card" id="card-pattern" data-app="PatternGen/index.html" tabindex="0" role="button"
+                aria-label="Launch Pattern Generator app">
+                <div class="card-thumb pattern-thumb">
+                    <canvas class="pattern-thumb-canvas" id="pattern-thumb-canvas"></canvas>
                 </div>
                 <div class="card-body">
                     <div class="card-meta">
-                        <span class="card-tag tag-design">✏️ Design</span>
-                        <span class="card-status status-soon">◌ Soon</span>
+                        <span class="card-tag tag-generative">✦ Generative</span>
+                        <span class="card-status status-live">● Live</span>
                     </div>
-                    <h3 class="card-title">Type Scale</h3>
-                    <p class="card-desc">Generate modular type scales for your UI. Preview in real-time and export as
-                        CSS or tokens.</p>
-                    <div class="coming-soon-pill">Coming Soon</div>
+                    <h3 class="card-title">Pattern Generator</h3>
+                    <p class="card-desc">Procedural art from math — Spirograph, Lissajous, Rose Curves, Flow Fields
+                        and more. Style with Abstract, Grunge, Neon presets. Export as PNG.</p>
+                    <button class="card-launch-btn" aria-label="Launch Pattern Generator">
+                        <span>Launch App</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M5 12h14" />
+                            <path d="m12 5 7 7-7 7" />
+                        </svg>
+                    </button>
                 </div>
             </article>
 

@@ -64,6 +64,7 @@ document.addEventListener('keydown', (e) => {
 // ── App Cards ────────────────────────────────────────────────
 const APPS = {
     'card-palette': { src: 'ColorPalette/index.html', name: 'Palette Picker' },
+    'card-pattern': { src: 'PatternGen/index.html', name: 'Pattern Generator' },
 };
 
 document.querySelectorAll('.app-card:not(.app-soon)').forEach(card => {
@@ -165,6 +166,51 @@ function drawShapeLogo() {
     });
 }
 
+// ── Animated Pattern Thumbnail ──────────────────────────────
+// Draws a live mini spirograph onto the card thumbnail canvas.
+function animatePatternThumb() {
+    const canvas = document.getElementById('pattern-thumb-canvas');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.offsetWidth || 300;
+    const H = canvas.offsetHeight || 180;
+    canvas.width = W;
+    canvas.height = H;
+
+    let t = 0;
+    const COLORS = ['#7c6bf5', '#f072b6', '#63FFD5', '#FFD663', '#00ffe0'];
+
+    function drawFrame() {
+        ctx.fillStyle = 'rgba(10,10,15,0.18)';
+        ctx.fillRect(0, 0, W, H);
+        const cx = W / 2, cy = H / 2;
+        const R = Math.min(W, H) * 0.42;
+        const r = R / (3 + Math.sin(t * 0.07) * 1.2);
+        const d = r * (0.5 + 0.4 * Math.cos(t * 0.05));
+        const steps = 600;
+        for (let i = 0; i < steps; i++) {
+            const theta = (i / steps) * Math.PI * 2 * 12;
+            const x = cx + (R - r) * Math.cos(theta) + d * Math.cos(((R - r) / r) * theta);
+            const y = cy + (R - r) * Math.sin(theta) - d * Math.sin(((R - r) / r) * theta);
+            const col = COLORS[Math.floor((i / steps * COLORS.length + t * 0.1) % COLORS.length)];
+            ctx.fillStyle = col;
+            ctx.globalAlpha = 0.55;
+            ctx.beginPath();
+            ctx.arc(x, y, 0.9, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+        t += 0.4;
+        requestAnimationFrame(drawFrame);
+    }
+
+    // Fill black once before first animation frame
+    ctx.fillStyle = '#0a0a0f';
+    ctx.fillRect(0, 0, W, H);
+    drawFrame();
+}
+
 // ── Init ────────────────────────────────────────────────────
 applyTheme(currentTheme);
 drawShapeLogo();
+animatePatternThumb();
