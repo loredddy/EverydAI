@@ -432,6 +432,38 @@ body {
     pointer-events: none;
 }
 
+/* ── Equation label row (label + random button) ── */
+.eq-label-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+}
+
+.btn-rand-eq {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text-muted);
+    font-size: 10.5px;
+    font-family: var(--font-sans);
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.18s var(--ease-out);
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.btn-rand-eq:hover {
+    border-color: var(--preset-accent);
+    color: var(--preset-accent);
+    background: rgba(124, 107, 245, 0.08);
+}
+
 .eq-hint {
     font-size: 10.5px;
     color: var(--text-dim);
@@ -452,6 +484,11 @@ body {
     gap: 7px;
     margin-top: auto;
     border-top: 1px solid var(--border);
+}
+
+/* Export button spans full width now that Animate is removed */
+.btn-export {
+    grid-column: 1 / -1;
 }
 
 .btn-action {

@@ -639,6 +639,51 @@ function randomize() {
     render();
 }
 
+// ── Random Equation ──────────────────────────────────────────────
+const RANDOM_EQUATIONS = [
+    'sin(x * a * PI) + cos(y * b * PI)',
+    'sin(x * a + t) * cos(y * b - t)',
+    'abs(sin(x * a * 3)) - abs(cos(y * b * 3))',
+    'sin(sqrt(x*x + y*y) * a * 5) * cos(t)',
+    'sin(x * a) * sin(y * b) * 2',
+    'cos(x * a * y * b + t)',
+    'sin(x * a * 4) * cos(y * b * 4) + sin(t)',
+    '(sin(x * a * PI) * cos(y * b * PI)) * 1.5',
+    'sin((x + y) * a * 3) * cos((x - y) * b)',
+    'abs(sin(x * a * PI * 2)) * abs(cos(y * b * PI * 2))',
+    'sin(x * a / (y + 0.01) * b)',
+    'cos(pow(x * a, 2) - pow(y * b, 2))',
+    'sin(x * a + sin(y * b * 2))',
+    'sin(x * a * 5) + sin(y * b * 7) + sin(t * 2)',
+    'floor(x * a * 4) / (a * 4) - floor(y * b * 4) / (b * 4)',
+    'sin(x * a + t) * cos(y * b + t) + sin(t)',
+    'pow(abs(sin(x * a * PI)), 0.5) - pow(abs(cos(y * b * PI)), 0.5)',
+    'sin(a * x + b * y) * cos(a * y - b * x)',
+    'sin(sqrt(pow(x - 0.5, 2) + pow(y - 0.5, 2)) * a * 10)',
+    'cos(x * a * PI * 3) * sin(y * b * PI * 3) * sin(t + x)',
+    'abs(sin(x * a * 6)) + abs(cos(y * b * 6)) - 1',
+    'sin(x * a * y * b * 4) + cos(t)',
+    'sin(atan2(y - 0.5, x - 0.5) * a) * cos(sqrt(x*x + y*y) * b * 4)',
+    '(sin(x * a * 4) + cos(y * b * 4)) * 0.5 + sin(t * 0.5)',
+];
+
+function randomEquation() {
+    const eq = RANDOM_EQUATIONS[Math.floor(Math.random() * RANDOM_EQUATIONS.length)];
+    const input = document.getElementById('equation');
+    const eqStatus = document.getElementById('eq-status');
+    input.value = eq;
+    state.equationStr = eq;
+    const fn = parseEquation(eq);
+    if (fn && fn !== 'error') {
+        state.equationFn = fn;
+        input.classList.remove('eq-error');
+        input.classList.add('eq-ok');
+        eqStatus.textContent = '✓';
+    }
+    render();
+    showToast('★ Random equation applied');
+}
+
 // ──────────────────────────────────────────────────────────────
 //  PRESET APPLY
 // ──────────────────────────────────────────────────────────────
@@ -873,29 +918,14 @@ function init() {
     });
 
     // Action buttons
-    document.getElementById('btn-generate').addEventListener('click', () => {
-        stopAnimate();
-        render();
-    });
+    document.getElementById('btn-generate').addEventListener('click', () => { render(); });
 
     document.getElementById('btn-randomize').addEventListener('click', () => {
-        stopAnimate();
         randomize();
         showToast('🎲 Randomized!');
     });
 
-    const btnAnimate = document.getElementById('btn-animate');
-    btnAnimate.addEventListener('click', () => {
-        if (state.animating) {
-            stopAnimate();
-            btnAnimate.classList.remove('is-animating');
-            btnAnimate.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> Animate`;
-        } else {
-            startAnimate();
-            btnAnimate.classList.add('is-animating');
-            btnAnimate.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause`;
-        }
-    });
+    document.getElementById('btn-rand-eq').addEventListener('click', randomEquation);
 
     document.getElementById('btn-export').addEventListener('click', exportPNG);
 
@@ -912,12 +942,11 @@ function init() {
         setTimeout(resizeCanvas, 360);
     });
 
-    // Keyboard shortcut: G = generate, R = randomize, A = animate, E = export
+    // Keyboard shortcut: G = generate, R = randomize, E = export
     document.addEventListener('keydown', (e) => {
         if (['INPUT', 'SELECT', 'TEXTAREA'].includes(e.target.tagName)) return;
-        if (e.key === 'g' || e.key === 'G') { stopAnimate(); render(); }
-        if (e.key === 'r' || e.key === 'R') { stopAnimate(); randomize(); }
-        if (e.key === 'a' || e.key === 'A') document.getElementById('btn-animate').click();
+        if (e.key === 'g' || e.key === 'G') render();
+        if (e.key === 'r' || e.key === 'R') { randomize(); showToast('🎲 Randomized!'); }
         if (e.key === 'e' || e.key === 'E') exportPNG();
     });
 
