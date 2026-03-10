@@ -62,25 +62,17 @@ const PRESETS = {
         palette: 'spectrum',
         neonGlow: false,
         grainAlpha: 0,
-        bgColor: '#0a0a0c',
+        bgColor: '#09100a',
     },
     minimal: {
         bgAlpha: 0.12,
-        lineWeight: 0.6,
-        opacity: 0.35,
+        lineWeight: 1.0,
+        opacity: 0.9,
         palette: 'mono',
         neonGlow: false,
         grainAlpha: 0,
-        bgColor: '#0f0f0f',
-    },
-    grunge: {
-        bgAlpha: 0.03,
-        lineWeight: 1.8,
-        opacity: 0.7,
-        palette: 'grunge',
-        neonGlow: false,
-        grainAlpha: 0.18,
-        bgColor: '#0c0a08',
+        bgColor: '#0a110a',
+        defaultPattern: 'lattice',
     },
     neon: {
         bgAlpha: 0.08,
@@ -90,15 +82,6 @@ const PRESETS = {
         neonGlow: true,
         grainAlpha: 0,
         bgColor: '#04040e',
-    },
-    organic: {
-        bgAlpha: 0.05,
-        lineWeight: 1.4,
-        opacity: 0.6,
-        palette: 'ice',
-        neonGlow: false,
-        grainAlpha: 0.04,
-        bgColor: '#060e0a',
     },
 };
 
@@ -372,6 +355,79 @@ const RENDERERS = {
                 ctx.beginPath();
                 ctx.moveTo(lx + Math.cos(perp) * -hw, ly + Math.sin(perp) * -hw);
                 ctx.lineTo(lx + Math.cos(perp) * hw, ly + Math.sin(perp) * hw);
+                ctx.stroke();
+            }
+        }
+        ctx.globalAlpha = baseAlpha;
+    },
+
+    // ── Lattice (basket-weave) ───────────────────────────────────────
+    // Interlaced horizontal and vertical strips with alternating over/under.
+    lattice(ctx, W, H, p, colorFn, rng) {
+        const s = Math.max(10, Math.round(62 - p.density * 0.5));   // cell size
+        const t = Math.max(3, Math.round(s * 0.54 * p.amplitude)); // strip width
+        const nc = Math.ceil(W / s) + 4;
+        const nr = Math.ceil(H / s) + 4;
+        const ox = ((W % s) - s) / 2;  // center grid horizontally
+        const oy = ((H % s) - s) / 2;  // center grid vertically
+
+        // Pass 1: ALL horizontal strips — full canvas width, no gaps
+        for (let r = 0; r < nr; r++) {
+            const y = oy + r * s;
+            ctx.fillStyle = colorFn(r / nr * 0.3 + 0.05);
+            ctx.fillRect(0, y - t / 2, W, t);
+        }
+
+        // Pass 2: Vertical strips — alternating over/under at each intersection
+        for (let c = 0; c < nc; c++) {
+            const x = ox + c * s;
+            ctx.fillStyle = colorFn(c / nc * 0.3 + 0.05);
+            for (let r = 0; r < nr; r++) {
+                const y = oy + r * s;
+                const vOver = (r + c) % 2 !== 0;  // alternating weave
+                if (vOver) {
+                    // Vertical on top: repaint the full intersection zone
+                    ctx.fillRect(x - t / 2, y - s / 2, t, s + 1);
+                } else {
+                    // Vertical underneath: paint only the bridges between strips
+                    ctx.fillRect(x - t / 2, y - s / 2, t, s / 2 - t / 2);
+                    ctx.fillRect(x - t / 2, y + t / 2, t, s / 2 - t / 2);
+                }
+            }
+        }
+    },
+
+    // ── Dense Hatch (multi-angle mesh) ──────────────────────────────────
+    // Overlapping lines at evenly-spaced angles with noise wobble — grunge mesh.
+    densehatch(ctx, W, H, p, colorFn, rng) {
+        const noise = makeNoise(Math.floor(p.seed));
+        const diag = Math.sqrt(W * W + H * H);
+        const spacing = Math.max(3, Math.floor(26 - p.density * 0.18));
+        const numAngles = Math.max(2, Math.min(7, Math.floor(p.freqA / 2) + 2));
+        const baseAlpha = ctx.globalAlpha;
+
+        for (let ai = 0; ai < numAngles; ai++) {
+            // Evenly distribute angles over [0, π) — 3 angles = triangular mesh
+            const angle = (ai / numAngles) * Math.PI;
+            const lDirX = Math.cos(angle);            // line direction
+            const lDirY = Math.sin(angle);
+            const pDirX = -Math.sin(angle);            // perpendicular
+            const pDirY = Math.cos(angle);
+            const t0 = ai / numAngles;
+
+            for (let d = -diag / 2; d < diag / 2; d += spacing) {
+                const nv = noise(d * 0.018, ai * 73.1 + 7);
+                const wobble = (nv - 0.5) * spacing * 0.55 * p.amplitude;
+                const ld = d + wobble;
+                // Walk along the perpendicular to reach the line's anchor point
+                const px = W / 2 + pDirX * ld;
+                const py = H / 2 + pDirY * ld;
+
+                ctx.globalAlpha = baseAlpha * (0.35 + nv * 0.65);
+                ctx.strokeStyle = colorFn((t0 + nv * 0.18) % 1);
+                ctx.beginPath();
+                ctx.moveTo(px - lDirX * diag, py - lDirY * diag);
+                ctx.lineTo(px + lDirX * diag, py + lDirY * diag);
                 ctx.stroke();
             }
         }
@@ -695,6 +751,14 @@ function applyPreset(name) {
     state.opacity = preset.opacity;
     state.palette = preset.palette;
 
+    // Switch to the preset’s signature pattern if it has one
+    if (preset.defaultPattern) {
+        state.pattern = preset.defaultPattern;
+        const sel = document.getElementById('pattern-type');
+        if (sel) sel.value = state.pattern;
+        document.getElementById('active-pattern-label').textContent = getPatternLabel(state.pattern);
+    }
+
     // Update body data-preset for CSS vars
     document.body.setAttribute('data-preset', name);
 
@@ -758,6 +822,8 @@ function getPatternLabel(p) {
         gridnoise: 'Grid Noise',
         fractal: 'Fractal Burst',
         crosshatch: 'Crosshatch',
+        lattice: 'Lattice',
+        densehatch: 'Dense Hatch',
     };
     return map[p] || p;
 }

@@ -65,6 +65,7 @@ document.addEventListener('keydown', (e) => {
 const APPS = {
     'card-palette': { src: 'ColorPalette/index.html', name: 'Palette Picker' },
     'card-pattern': { src: 'PatternGen/index.html', name: 'Pattern Generator' },
+    'card-visage': { src: '../FaceShapeFinder/index.html', name: 'What Hairstyle?' }
 };
 
 document.querySelectorAll('.app-card:not(.app-soon)').forEach(card => {
@@ -167,7 +168,7 @@ function drawShapeLogo() {
 }
 
 // ── Animated Pattern Thumbnail ──────────────────────────────
-// Draws a live mini spirograph onto the card thumbnail canvas.
+// Draws a live transition of actual generative patterns from the app
 function animatePatternThumb() {
     const canvas = document.getElementById('pattern-thumb-canvas');
     if (!canvas) return;
@@ -178,29 +179,87 @@ function animatePatternThumb() {
     canvas.height = H;
 
     let t = 0;
-    const COLORS = ['#7c6bf5', '#f072b6', '#63FFD5', '#FFD663', '#00ffe0'];
+    const COLORS = [
+        [124, 107, 245], // Abstract Purple (Lissajous)
+        [240, 114, 182], // Neon Pink (Rose)
+        [99, 255, 213]   // Tech Aqua (Spirograph)
+    ];
 
     function drawFrame() {
-        ctx.fillStyle = 'rgba(10,10,15,0.18)';
+        // Soft fade for trails
+        ctx.fillStyle = 'rgba(10,10,15,0.06)';
         ctx.fillRect(0, 0, W, H);
+
         const cx = W / 2, cy = H / 2;
-        const R = Math.min(W, H) * 0.42;
-        const r = R / (3 + Math.sin(t * 0.07) * 1.2);
-        const d = r * (0.5 + 0.4 * Math.cos(t * 0.05));
-        const steps = 600;
-        for (let i = 0; i < steps; i++) {
-            const theta = (i / steps) * Math.PI * 2 * 12;
-            const x = cx + (R - r) * Math.cos(theta) + d * Math.cos(((R - r) / r) * theta);
-            const y = cy + (R - r) * Math.sin(theta) - d * Math.sin(((R - r) / r) * theta);
-            const col = COLORS[Math.floor((i / steps * COLORS.length + t * 0.1) % COLORS.length)];
-            ctx.fillStyle = col;
-            ctx.globalAlpha = 0.55;
+        ctx.lineWidth = 1.5;
+        ctx.lineJoin = 'round';
+
+        const duration = 7.0; // seconds per pattern
+        const phase = (t % (duration * 3)) / duration; // 0 to 3
+
+        const getAlpha = (p, target) => {
+            let dist = Math.abs(p - target);
+            if (dist > 1.5) dist = 3 - dist;
+            return Math.max(0, 1 - dist * 2); // Fades in/out smoothly
+        };
+
+        const a0 = getAlpha(phase, 0);
+        const a1 = getAlpha(phase, 1);
+        const a2 = getAlpha(phase, 2);
+
+        // 1. Lissajous
+        if (a0 > 0.01) {
             ctx.beginPath();
-            ctx.arc(x, y, 0.9, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.strokeStyle = `rgba(${COLORS[0][0]}, ${COLORS[0][1]}, ${COLORS[0][2]}, ${a0 * 0.7})`;
+            const rx = W * 0.42, ry = H * 0.42;
+            const delta = t * 0.6;
+            for (let i = 0; i <= 200; i++) {
+                const theta = (i / 200) * Math.PI * 2;
+                const x = cx + rx * Math.cos(3 * theta + delta);
+                const y = cy + ry * Math.sin(2 * theta);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
         }
-        ctx.globalAlpha = 1;
-        t += 0.4;
+
+        // 2. Rose Curve
+        if (a1 > 0.01) {
+            ctx.beginPath();
+            ctx.strokeStyle = `rgba(${COLORS[1][0]}, ${COLORS[1][1]}, ${COLORS[1][2]}, ${a1 * 0.7})`;
+            const R = Math.min(W, H) * 0.44;
+            const k = 5;
+            const rot = t * 0.4;
+            const rmod = 0.8 + 0.2 * Math.sin(t * 1.5);
+            for (let i = 0; i <= 300; i++) {
+                const theta = (i / 300) * Math.PI * 2;
+                const r = R * Math.cos(k * theta) * rmod;
+                const x = cx + r * Math.cos(theta + rot);
+                const y = cy + r * Math.sin(theta + rot);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        // 3. Spirograph
+        if (a2 > 0.01) {
+            ctx.beginPath();
+            ctx.strokeStyle = `rgba(${COLORS[2][0]}, ${COLORS[2][1]}, ${COLORS[2][2]}, ${a2 * 0.7})`;
+            const R = Math.min(W, H) * 0.42;
+            const r = R / 4;
+            const d = r * (1.0 + 0.6 * Math.sin(t * 1.2));
+            const rot = -t * 0.3;
+            for (let i = 0; i <= 300; i++) {
+                const theta = (i / 300) * Math.PI * 2;
+                const pX = (R - r) * Math.cos(theta) + d * Math.cos(((R - r) / r) * theta);
+                const pY = (R - r) * Math.sin(theta) - d * Math.sin(((R - r) / r) * theta);
+                const x = cx + pX * Math.cos(rot) - pY * Math.sin(rot);
+                const y = cy + pX * Math.sin(rot) + pY * Math.cos(rot);
+                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            }
+            ctx.stroke();
+        }
+
+        t += 0.015; // Slow, smooth time progression
         requestAnimationFrame(drawFrame);
     }
 

@@ -1,33 +1,34 @@
-/* ──────────────────────────────────────────────────────────────
+/* ───────────────────────────────────────────────────────────────
    Pattern Generator — style.css
-   EverydAI · Dark-first, premium aesthetic
-────────────────────────────────────────────────────────────── */
-
-/* ── Google Fonts imported in HTML ── */
+   EverydAI · RE7 Inventory — tactical dark terminal aesthetic
+─────────────────────────────────────────────────────────────── */
 
 /* ── Design tokens ── */
 :root {
-    --bg: #0a0a0c;
-    --surface: #111115;
-    --surface-2: #18181e;
-    --border: rgba(255, 255, 255, 0.07);
-    --border-hover: rgba(255, 255, 255, 0.14);
-    --text: #e8e8f0;
-    --text-muted: #6b6b80;
-    --text-dim: #3e3e52;
+    /* RE7 dark industrial palette */
+    --bg: #09100a;
+    --surface: #0d140e;
+    --surface-2: #121c13;
+    --border: rgba(80, 200, 90, 0.10);
+    --border-hover: rgba(80, 200, 90, 0.22);
+    --text: #cfe0cb;
+    --text-muted: #4a6b47;
+    --text-dim: #243824;
 
-    --accent-a: #7c6bf5;
-    --accent-b: #f072b6;
-    --accent-mid: #a168dd;
+    /* Neon green (primary) + amber (secondary) */
+    --accent-a: #3dff82;
+    --accent-b: #d4900a;
+    --accent-mid: #22cc58;
 
     --sidebar-w: 280px;
-    --sidebar-bg: rgba(14, 14, 18, 0.92);
+    --sidebar-bg: rgba(9, 14, 9, 0.96);
 
-    --radius-sm: 6px;
-    --radius-md: 10px;
-    --radius-lg: 16px;
+    --radius-sm: 3px;
+    /* sharper corners = more tactical */
+    --radius-md: 5px;
+    --radius-lg: 8px;
 
-    --shadow-card: 0 0 0 1px var(--border), 0 8px 32px rgba(0, 0, 0, 0.45);
+    --shadow-card: 0 0 0 1px var(--border), 0 8px 32px rgba(0, 0, 0, 0.6);
 
     --font-sans: 'Inter', system-ui, sans-serif;
     --font-display: 'Space Grotesk', system-ui, sans-serif;
@@ -38,32 +39,23 @@
 
     /* Preset overrides */
     --preset-accent: var(--accent-a);
+    --preset-accent-b: var(--accent-b);
 }
 
 /* Preset-specific accent colors */
 [data-preset="abstract"] {
-    --preset-accent: #7c6bf5;
-    --preset-accent-b: #f072b6;
+    --preset-accent: #3dff82;
+    --preset-accent-b: #d4900a;
 }
 
 [data-preset="minimal"] {
-    --preset-accent: #d0d0d8;
-    --preset-accent-b: #888896;
-}
-
-[data-preset="grunge"] {
-    --preset-accent: #b05a2a;
-    --preset-accent-b: #7a4010;
+    --preset-accent: #a8c8a2;
+    --preset-accent-b: #5a7855;
 }
 
 [data-preset="neon"] {
     --preset-accent: #00ffe0;
-    --preset-accent-b: #ff00aa;
-}
-
-[data-preset="organic"] {
-    --preset-accent: #4ec994;
-    --preset-accent-b: #b8e04a;
+    --preset-accent-b: #ff2d78;
 }
 
 /* ── Reset ── */
@@ -115,14 +107,16 @@ body {
 /* ══════════════════════════════════════════
    SIDEBAR
 ══════════════════════════════════════════ */
+/* ── Sidebar border — tactical green glow ── */
 .sidebar {
     width: var(--sidebar-w);
     min-width: var(--sidebar-w);
     height: 100%;
     background: var(--sidebar-bg);
-    backdrop-filter: blur(20px) saturate(1.4);
-    -webkit-backdrop-filter: blur(20px) saturate(1.4);
-    border-right: 1px solid var(--border);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    border-right: 1px solid rgba(61, 255, 130, 0.18);
+    box-shadow: 1px 0 24px rgba(61, 255, 130, 0.04);
     display: flex;
     flex-direction: column;
     gap: 0;
@@ -240,7 +234,7 @@ body {
     color: var(--preset-accent);
 }
 
-/* ── Preset pills ── */
+/* ── Preset pills — tactical inventory-slot style ── */
 .preset-pills {
     display: flex;
     flex-wrap: wrap;
@@ -248,37 +242,34 @@ body {
 }
 
 .preset-pill {
-    padding: 4px 10px;
-    border-radius: 20px;
+    padding: 5px 11px;
+    border-radius: var(--radius-sm);
     border: 1px solid var(--border);
-    background: transparent;
+    background: var(--surface-2);
     color: var(--text-muted);
-    font-size: 11px;
-    font-family: var(--font-sans);
-    font-weight: 500;
+    font-size: 10.5px;
+    font-family: var(--font-mono);
+    font-weight: 400;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
     cursor: pointer;
-    transition: all 0.2s var(--ease-out);
+    transition: all 0.15s var(--ease-out);
     white-space: nowrap;
+    clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 0 100%);
 }
 
 .preset-pill:hover {
-    border-color: var(--border-hover);
-    color: var(--text);
+    border-color: var(--preset-accent);
+    color: var(--preset-accent);
+    background: rgba(61, 255, 130, 0.06);
 }
 
 .preset-pill.active {
-    background: var(--preset-accent);
+    background: rgba(61, 255, 130, 0.12);
     border-color: var(--preset-accent);
-    color: #000;
-    font-weight: 600;
-}
-
-[data-preset="minimal"] .preset-pill.active {
-    color: #111;
-}
-
-[data-preset="grunge"] .preset-pill.active {
-    color: #f0e0d0;
+    color: var(--preset-accent);
+    font-weight: 700;
+    box-shadow: 0 0 8px rgba(61, 255, 130, 0.18) inset;
 }
 
 /* ── Styled select ── */
@@ -557,21 +548,40 @@ body {
     transition: background 0.5s ease;
 }
 
-/* Stage background per preset */
-[data-preset="grunge"] .stage {
-    background: #0c0a08;
-}
-
+/* Stage backgrounds per preset */
 [data-preset="neon"] .stage {
     background: #04040e;
 }
 
-[data-preset="organic"] .stage {
-    background: #060e0a;
+[data-preset="minimal"] .stage {
+    background: #0a100a;
 }
 
-[data-preset="minimal"] .stage {
-    background: #0f0f0f;
+/* ── CRT scanlines + vignette on the canvas stage ── */
+.stage::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(to bottom,
+            transparent 0px,
+            transparent 3px,
+            rgba(0, 12, 4, 0.09) 3px,
+            rgba(0, 12, 4, 0.09) 4px);
+    pointer-events: none;
+    z-index: 6;
+    mix-blend-mode: multiply;
+}
+
+/* Corner vignette for that CRT feel */
+.stage::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center,
+            transparent 55%,
+            rgba(0, 8, 2, 0.55) 100%);
+    pointer-events: none;
+    z-index: 7;
 }
 
 /* ── Pan hint ── */
