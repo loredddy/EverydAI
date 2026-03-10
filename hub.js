@@ -65,7 +65,7 @@ document.addEventListener('keydown', (e) => {
 const APPS = {
     'card-palette': { src: 'ColorPalette/index.html', name: 'Palette Picker' },
     'card-pattern': { src: 'PatternGen/index.html', name: 'Pattern Generator' },
-    'card-visage': { src: '../FaceShapeFinder/index.html', name: 'What Hairstyle?' }
+    'card-visage': { src: 'WhatHairstyle/index.html', name: 'What Hairstyle?' }
 };
 
 document.querySelectorAll('.app-card:not(.app-soon)').forEach(card => {

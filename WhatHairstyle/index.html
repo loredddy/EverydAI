@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>What Hairstyle? - Styling Assistant</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Tailwind Config for Custom Colors/Fonts -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'off-white': '#f5f5f5',
+                        'off-black': '#111111',
+                    },
+                    fontFamily: {
+                        mono: ['SFMono-Regular', 'Menlo', 'Monaco', 'Consolas', 'Liberation Mono', 'Courier New', 'monospace'],
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- MediaPipe Face Mesh -->
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"
+        crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+
+    <!-- Face-API.js for Gender Detection -->
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+</head>
+
+<body
+    class="bg-off-white text-off-black font-sans min-h-screen flex flex-col antialiased selection:bg-off-black selection:text-off-white">
+
+    <!-- Header -->
+    <header class="border-b-2 border-off-black p-6 flex justify-between items-end">
+        <div>
+            <h1 class="text-3xl font-black uppercase tracking-tighter">What Hairstyle?</h1>
+            <p class="text-xs font-mono uppercase text-gray-500 mt-1">Because my mom hates every haircut I get. [SYS:
+                ONLINE]</p>
+        </div>
+        <div class="text-xs font-mono text-gray-400">V4.0</div>
+    </header>
+
+    <!-- Main App Container -->
+    <main
+        class="flex-grow flex flex-col md:flex-row w-full max-w-7xl mx-auto divide-y-2 md:divide-y-0 md:divide-x-2 divide-off-black">
+
+        <!-- Camera / Feed Section -->
+        <section class="flex-1 p-6 flex flex-col gap-6 relative">
+            <h2 class="text-sm font-bold uppercase tracking-widest text-gray-400">Input Feed</h2>
+
+            <div
+                class="relative w-full aspect-square md:aspect-video rounded-sm overflow-hidden bg-off-black group border-2 border-off-black">
+                <video id="input_video" class="absolute inset-0 w-full h-full object-cover grayscale opacity-70"
+                    autoplay playsinline></video>
+                <img id="input_image" class="absolute inset-0 w-full h-full object-cover grayscale"
+                    style="display: none;" />
+                <canvas id="output_canvas" class="absolute inset-0 w-full h-full object-cover z-10"></canvas>
+
+                <!-- Utilitarian Loading Overlay -->
+                <div id="loading_overlay"
+                    class="absolute inset-0 bg-off-black/80 z-20 flex-col justify-center items-center gap-4 hidden">
+                    <div class="w-8 h-8 border-4 border-off-white border-t-transparent rounded-full animate-spin"></div>
+                    <span id="loading_text"
+                        class="font-mono text-xs uppercase text-off-white tracking-widest">Processing...</span>
+                </div>
+            </div>
+
+            <div class="flex gap-4 w-full">
+                <button id="btn_toggle_camera"
+                    class="flex-1 border-2 border-off-black bg-off-black text-off-white py-3 px-4 uppercase font-bold text-sm hover:bg-off-white hover:text-off-black transition-colors duration-200">
+                    <span id="camera_btn_text">Start Camera</span>
+                </button>
+                <div class="flex-1 relative">
+                    <input type="file" id="btn_upload_image"
+                        class="absolute inset-0 w-full h-full opacity-0 cursor-pointer" accept="image/*" />
+                    <div
+                        class="w-full h-full border-2 border-off-black bg-transparent text-off-black py-3 px-4 uppercase font-bold text-sm flex items-center justify-center hover:bg-gray-200 transition-colors duration-200 cursor-pointer pointer-events-none">
+                        Upload Image
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 mt-auto">
+                <div id="status_dot" class="w-3 h-3 bg-red-500 rounded-full"></div>
+                <span id="status_text" class="font-mono text-xs uppercase bg-off-black text-off-white px-2 py-1">Idle.
+                    Awaiting Input.</span>
+            </div>
+        </section>
+
+        <!-- Analysis & Results Section -->
+        <section class="flex-1 p-6 flex flex-col gap-8 bg-white" id="results_panel">
+
+            <h2 class="text-sm font-bold uppercase tracking-widest text-gray-400">Analysis Output</h2>
+
+            <!-- Shape & Gender -->
+            <div class="grid grid-cols-2 gap-4 border-b-2 border-gray-200 pb-8">
+                <div>
+                    <span class="block text-xs font-mono text-gray-400 mb-1 uppercase">Detected Shape</span>
+                    <span id="result_shape_name" class="text-4xl font-black uppercase tracking-tight">---</span>
+                </div>
+                <div class="border-l-2 border-gray-200 pl-4">
+                    <span class="block text-xs font-mono text-gray-400 mb-1 uppercase">Detected Gender</span>
+                    <span id="result_gender_name"
+                        class="text-2xl font-bold uppercase tracking-tight mt-2 block">---</span>
+                    <span id="result_gender_prob" class="text-xs font-mono text-gray-400 mt-1 block">CONF: --%</span>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div class="text-sm border-l-4 border-off-black pl-4">
+                <p id="result_shape_desc" class="font-medium text-gray-600">Awaiting analysis data.</p>
+            </div>
+
+            <!-- Deep Metrics Toggle -->
+            <div>
+                <button id="btn_toggle_metrics"
+                    class="flex items-center gap-2 text-xs font-mono uppercase bg-gray-100 hover:bg-gray-200 px-3 py-2 transition-colors">
+                    <span>Show Raw Data</span>
+                    <svg class="w-3 h-3 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                    </svg>
+                </button>
+
+                <div id="detailed_metrics" class="hidden grid-cols-2 gap-px bg-gray-200 border-2 border-gray-200 mt-2">
+                    <div class="bg-white p-3 flex justify-between items-center">
+                        <span class="text-xs font-mono text-gray-500">LEN_Y</span>
+                        <span id="metric_length" class="font-bold text-sm">--</span>
+                    </div>
+                    <div class="bg-white p-3 flex justify-between items-center">
+                        <span class="text-xs font-mono text-gray-500">WID_X</span>
+                        <span id="metric_width" class="font-bold text-sm">--</span>
+                    </div>
+                    <div class="bg-white p-3 flex justify-between items-center">
+                        <span class="text-xs font-mono text-gray-500">JAW_X</span>
+                        <span id="metric_jaw" class="font-bold text-sm">--</span>
+                    </div>
+                    <div class="bg-white p-3 flex justify-between items-center">
+                        <span class="text-xs font-mono text-gray-500">FRH_X</span>
+                        <span id="metric_forehead" class="font-bold text-sm">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recommendations -->
+            <div id="recommendations_container" class="hidden mt-auto pt-6 border-t-2 border-gray-200">
+                <div class="flex justify-between items-end mb-4">
+                    <h3 class="text-lg font-black uppercase">Recommended Styles</h3>
+                    <span class="text-xs font-mono text-gray-400">Sorted by match</span>
+                </div>
+                <div id="hairstyles_list" class="flex flex-col gap-4">
+                    <!-- Populated dynamically via JS -->
+                </div>
+            </div>
+
+        </section>
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t-2 border-off-black p-4 mt-auto">
+        <div class="max-w-7xl mx-auto flex justify-between text-xs font-mono text-gray-500 uppercase">
+            <span>Powered by MediaPipe & Face-API.js</span>
+            <span>Minimalist V3</span>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+
+</html>

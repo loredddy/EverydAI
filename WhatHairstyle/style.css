@@ -1,0 +1,38 @@
+/* 
+   We removed almost all custom CSS.
+   Tailwind utility classes are used for the rugged minimalist aesthetic.
+   Only these few overrides are necessary. 
+*/
+
+.loading-overlay.active {
+    display: flex;
+}
+
+/* Custom minimal scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f5f5f5;
+    border-left: 2px solid #111;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #111;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #333;
+}
+
+/* Ensure canvas aligns perfectly with video */
+.output-canvas {
+    transform: scaleX(-1);
+    /* MediaPipe mirrored drawing fix */
+}
+
+/* Keep image un-mirrored */
+.is-image .output-canvas {
+    transform: scaleX(1);
+}
