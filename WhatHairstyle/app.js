@@ -176,11 +176,10 @@ function updateStatus(state, msg) {
 }
 
 // Math Utility
-function calculateDistance(point1, point2) {
-    const dx = point1.x - point2.x;
-    const dy = point1.y - point2.y;
-    const dz = point1.z - point2.z;
-    return Math.sqrt(dx * dx + dy * dy + dz * dz);
+function calculateDistance2D(point1, point2, w, h) {
+    const dx = (point1.x - point2.x) * w;
+    const dy = (point1.y - point2.y) * h;
+    return Math.sqrt(dx * dx + dy * dy);
 }
 
 // MediaPipe Face Mesh Init - Optimized
@@ -199,6 +198,123 @@ faceMesh.setOptions({
 
 faceMesh.onResults(onResults);
 
+function getHairstyleVector(name, gender) {
+    const n = name.toLowerCase();
+
+    // Clean, perfectly matching line-art base (U-shape face + ears)
+    const baseGroup = `
+        <g stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round">
+            <!-- U-shaped jawline -->
+            <path d="M 28,45 Q 28,80 50,85 Q 72,80 72,45" />
+            <!-- Ears -->
+            <path d="M 28,50 C 18,50 18,65 28,62" />
+            <path d="M 72,50 C 82,50 82,65 72,62" />
+    `;
+
+    let hairPaths = "";
+
+    if (gender === 'female') {
+        if (n.includes('bob') || n.includes('lob')) {
+            // Elegant Bob
+            hairPaths = `
+                <path d="M 28,45 C 20,40 15,20 50,15 C 85,20 80,40 72,45" />
+                <path d="M 28,45 C 18,55 25,75 35,75 M 72,45 C 82,55 75,75 65,75" />
+                <!-- Part -->
+                <path d="M 45,16 Q 40,25 35,35 M 55,16 Q 60,25 65,35" />
+            `;
+        } else if (n.includes('pixie')) {
+            // Chic Pixie Cut
+            hairPaths = `
+                <path d="M 25,45 C 20,25 35,10 50,15 C 65,10 80,25 75,45" />
+                <!-- sweeping layer -->
+                <path d="M 35,35 Q 50,25 75,40" />
+                <path d="M 25,40 Q 35,35 45,25" />
+            `;
+        } else if (n.includes('shag') || n.includes('wolf')) {
+            // Textured Wolf Cut / Shag
+            hairPaths = `
+                <!-- messy outer -->
+                <path d="M 25,45 C 15,30 20,15 50,10 C 80,15 85,30 75,45" />
+                <path d="M 20,55 L 25,65 M 22,65 L 28,75 M 80,55 L 75,65 M 78,65 L 72,75" />
+                <!-- face framing bangs -->
+                <path d="M 28,40 Q 40,30 50,20 Q 60,30 72,40" />
+            `;
+        } else if (n.includes('fringe') || n.includes('bangs')) {
+            // Straight with Bangs
+            hairPaths = `
+                <path d="M 50,15 C 15,15 15,40 18,90 M 50,15 C 85,15 85,40 82,90" />
+                <!-- Bangs -->
+                <path d="M 28,35 Q 50,45 72,35 M 35,36 L 35,22 M 50,39 L 50,20 M 65,36 L 65,22" />
+            `;
+        } else {
+            // Elegant Long Waves
+            hairPaths = `
+                <path d="M 45,15 C 20,15 15,30 20,50 Q 25,60 18,75 Q 15,85 20,95" />
+                <path d="M 45,15 Q 55,15 60,18 C 80,15 85,30 80,50 Q 75,60 82,75 Q 85,85 80,95" />
+                <!-- Inner lines -->
+                <path d="M 28,45 Q 15,60 25,80 M 72,45 Q 85,60 75,80" />
+            `;
+        }
+    } else {
+        if (n.includes('fade')) {
+            // Clean Fade Cut (from image)
+            hairPaths = `
+                <!-- top mass -->
+                <path d="M 25,40 C 20,25 35,15 50,15 C 65,15 80,25 75,40 C 75,45 60,40 50,38 C 40,40 25,45 25,40 Z" />
+                <!-- sweep line -->
+                <path d="M 35,35 Q 50,25 75,40" />
+                <!-- side fade detail -->
+                <path d="M 28,45 L 30,50 M 72,45 L 70,50" />
+            `;
+        } else if (n.includes('buzz') || n.includes('crew')) {
+            // Buzz Cut (from image)
+            hairPaths = `
+                <!-- close crop -->
+                <path d="M 25,45 C 25,20 75,20 75,45" />
+                <path d="M 33,35 L 36,40 M 42,33 L 45,38 M 55,33 L 52,38 M 64,35 L 61,40 M 72,40 L 69,44 M 28,40 L 31,44" />
+            `;
+        } else if (n.includes('quiff') || n.includes('pompadour') || n.includes('hawk')) {
+            // Pompadour / Quiff (from image)
+            hairPaths = `
+                <path d="M 25,40 C 20,15 40,5 50,10 C 60,15 75,20 75,40" />
+                <!-- swooshes -->
+                <path d="M 35,35 Q 40,25 55,20 M 45,40 Q 55,30 65,25 M 65,45 Q 70,40 75,40" />
+                <path d="M 28,45 L 25,40 M 72,45 L 75,40" />
+            `;
+        } else if (n.includes('fringe') || n.includes('crop')) {
+            // Messy / Spiky / Textured Crop (from image)
+            hairPaths = `
+                <!-- jagged outline -->
+                <path d="M 22,45 L 28,35 L 22,25 L 35,18 L 45,10 L 55,18 L 65,12 L 75,22 L 70,35 L 78,45" />
+                <!-- inner short spikes -->
+                <path d="M 35,32 L 40,25 M 48,32 L 53,24 M 62,32 L 67,26 M 38,40 L 45,35 M 55,40 L 60,35" />
+            `;
+        } else if (n.includes('mullet') || n.includes('bun')) {
+            // Man Bun / Mullet (from image)
+            hairPaths = `
+                <path d="M 25,45 C 25,25 40,15 50,15 C 60,15 75,25 75,45" />
+                <path d="M 30,35 Q 45,25 50,15 M 40,40 Q 55,30 60,20 M 60,45 Q 65,30 70,25" />
+                <!-- Bun -->
+                <path d="M 40,15 Q 50,5 60,15" />
+                <path d="M 45,10 Q 50,0 55,10" />
+            `;
+        } else {
+            // Classic Short Hair / Side Part (from image)
+            hairPaths = `
+                <path d="M 25,45 C 20,20 40,10 55,15 C 65,20 75,30 75,45" />
+                <!-- part -->
+                <path d="M 55,15 C 45,25 35,30 28,35 M 65,22 Q 55,30 45,35 M 72,35 Q 65,38 58,40" />
+            `;
+        }
+    }
+
+    return `<svg viewBox="0 0 100 100" class="w-full h-full p-2">
+        ${baseGroup}
+        ${hairPaths}
+        </g>
+    </svg>`;
+}
+
 function updateHairstyles(shape, gender) {
     if (shape === "Unknown" || gender === "unknown") {
         recommendationsContainer.classList.add('hidden');
@@ -214,14 +330,20 @@ function updateHairstyles(shape, gender) {
 
     const styles = hairstyleRecommendations[genderKey][shape] || [];
     styles.forEach((style, index) => {
+        const svgIcon = getHairstyleVector(style.name, genderKey);
         // Minimalist layout for recommendations
         const cardHtml = `
-            <div class="border-2 border-off-black p-4 bg-off-white hover:bg-gray-100 transition-colors flex flex-col gap-1">
-                <div class="flex justify-between items-center border-b-2 border-off-black pb-2 mb-2">
-                    <span class="font-black uppercase text-lg inline-block">${style.name}</span>
-                    <span class="text-xs font-mono bg-off-black text-off-white px-2 py-1 uppercase tracking-widest">Match 0${index + 1}</span>
+            <div class="border-2 border-off-black p-4 bg-off-white hover:bg-gray-100 transition-colors flex flex-col sm:flex-row gap-4">
+                <div class="w-16 h-16 sm:w-20 sm:h-20 shrink-0 bg-off-black text-off-white flex items-center justify-center pointer-events-none">
+                    ${svgIcon}
                 </div>
-                <p class="text-sm font-medium text-gray-700 font-mono uppercase tracking-tight">${style.desc}</p>
+                <div class="flex-1 flex flex-col justify-center gap-1">
+                    <div class="flex flex-wrap lg:flex-nowrap justify-between items-start lg:items-center border-b-2 border-off-black pb-2 mb-2 gap-2">
+                        <span class="font-black uppercase text-lg inline-block">${style.name}</span>
+                        <span class="text-xs font-mono bg-off-black text-off-white px-2 py-1 uppercase tracking-widest shrink-0">Match 0${index + 1}</span>
+                    </div>
+                    <p class="text-sm font-medium text-gray-700 font-mono uppercase tracking-tight">${style.desc}</p>
+                </div>
             </div>
         `;
         hairstylesList.insertAdjacentHTML('beforeend', cardHtml);
@@ -229,41 +351,40 @@ function updateHairstyles(shape, gender) {
 }
 
 async function analyzeFaceShapeAndGender(landmarks, sourceElement) {
-    // MediaPipe specific Landmark Indices
-    const faceLength = calculateDistance(landmarks[10], landmarks[152]);
-    const faceWidth = calculateDistance(landmarks[234], landmarks[454]);
-    const foreheadWidth = calculateDistance(landmarks[54], landmarks[284]);
-    const jawWidth = calculateDistance(landmarks[132], landmarks[361]);
+    // Optical screen width and height
+    const w = sourceElement.videoWidth || sourceElement.width || 640;
+    const h = sourceElement.videoHeight || sourceElement.height || 480;
+
+    // MediaPipe specific Landmark Indices - using pure 2D optical projection for face typing
+    const faceLength = calculateDistance2D(landmarks[10], landmarks[152], w, h);
+    const faceWidth = calculateDistance2D(landmarks[234], landmarks[454], w, h);
+    const foreheadWidth = calculateDistance2D(landmarks[54], landmarks[284], w, h);
+    const jawWidth = calculateDistance2D(landmarks[132], landmarks[361], w, h);
 
     // Update UI Metrics
-    metricLength.textContent = faceLength.toFixed(3);
-    metricWidth.textContent = faceWidth.toFixed(3);
-    metricJaw.textContent = jawWidth.toFixed(3);
-    metricForehead.textContent = foreheadWidth.toFixed(3);
+    metricLength.textContent = faceLength.toFixed(0) + 'px';
+    metricWidth.textContent = faceWidth.toFixed(0) + 'px';
+    metricJaw.textContent = jawWidth.toFixed(0) + 'px';
+    metricForehead.textContent = foreheadWidth.toFixed(0) + 'px';
 
     // Classification Logic
     let shape = "Unknown";
     const aspectRatio = faceLength / faceWidth;
 
-    if (aspectRatio > 1.4) {
-        shape = "Oblong";
-    } else if (jawWidth > faceWidth - 0.05 && foreheadWidth > faceWidth - 0.05) {
-        shape = "Square";
-    } else if (faceWidth > foreheadWidth + 0.05 && faceWidth > jawWidth + 0.05 && faceLength / faceWidth < 1.3) {
-        if (aspectRatio < 1.15) {
-            shape = "Round";
-        } else {
-            shape = "Diamond";
-        }
-    } else if (foreheadWidth > jawWidth + 0.05 && faceWidth > jawWidth + 0.05) {
-        shape = "Heart";
+    // Strict ratio-based heuristics
+    if (aspectRatio > 1.38) {
+        shape = "Oblong"; // Vertically dominant
+    } else if (faceWidth > foreheadWidth * 1.15 && faceWidth > jawWidth * 1.15) {
+        shape = "Diamond"; // Cheekbones are significantly wider than forehead and jaw
+    } else if (jawWidth > faceWidth * 0.85 && foreheadWidth > faceWidth * 0.85 && aspectRatio < 1.28) {
+        shape = "Square"; // Boxy structure (width is retained at top and bottom) plus a shorter aspect ratio
+    } else if (foreheadWidth > jawWidth * 1.15) {
+        shape = "Heart"; // Forehead is significantly wider than the tapered jaw
     } else {
-        if (aspectRatio >= 1.25 && aspectRatio <= 1.45) {
-            shape = "Oval";
-        } else if (aspectRatio < 1.25) {
-            shape = "Round";
+        if (aspectRatio < 1.25) {
+            shape = "Round"; // Shorter aspect ratio without the boxy corners of a square
         } else {
-            shape = "Oval";
+            shape = "Oval"; // Standard proportions
         }
     }
 
@@ -294,7 +415,7 @@ async function analyzeFaceShapeAndGender(landmarks, sourceElement) {
 
         if (gender !== 'unknown') {
             resultGenderName.textContent = gender;
-            resultGenderProb.textContent = `CONF: ${(prob * 100).toFixed(1)}%`;
+            resultGenderProb.textContent = `CONF: ${(prob * 100).toFixed(1)}% `;
         } else {
             resultGenderName.textContent = "---";
             resultGenderProb.textContent = "CONF: --%";
@@ -310,6 +431,8 @@ async function analyzeFaceShapeAndGender(landmarks, sourceElement) {
 }
 
 async function onResults(results) {
+    if (mode === 'idle' || mode === 'snapshot') return;
+
     hideLoading();
 
     canvasCtx.save();
@@ -333,6 +456,14 @@ async function onResults(results) {
             drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, { color: '#111111', lineWidth: 2 });
 
             await analyzeFaceShapeAndGender(landmarks, source);
+
+            // Auto-stop camera on successful scan containing all required data
+            if (isCameraRunning && currentShape !== "Unknown" && currentGender !== "unknown") {
+                // Short delay to draw the final confident frame to canvas
+                setTimeout(() => {
+                    if (isCameraRunning) disableCamera(false);
+                }, 800);
+            }
         }
     } else {
         updateStatus('analyzing', 'SCANNING FOR SUBJECT...');
@@ -386,31 +517,42 @@ async function enableCamera() {
     canvasElement.height = videoElement.videoHeight || 480;
 }
 
-function disableCamera() {
+function disableCamera(clearUI = true) {
     if (camera) {
         camera.stop();
     }
     isCameraRunning = false;
-    mode = 'idle';
     cameraBtnText.textContent = "Start Camera";
 
     btnToggleCamera.classList.replace('bg-red-600', 'bg-off-black');
     btnToggleCamera.classList.replace('border-red-600', 'border-off-black');
     btnToggleCamera.classList.replace('text-white', 'text-off-white');
 
-    canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
-    updateStatus('idle', 'IDLE. AWAITING INPUT.');
-    currentShape = "Unknown";
-    currentGender = "unknown";
-    resultShapeName.textContent = "---";
-    resultGenderName.textContent = "---";
-    resultGenderProb.textContent = "CONF: --%";
-    resultShapeDesc.textContent = "Awaiting analysis data.";
-    metricLength.textContent = "--";
-    metricWidth.textContent = "--";
-    metricJaw.textContent = "--";
-    metricForehead.textContent = "--";
-    updateHairstyles("Unknown", "unknown");
+    if (clearUI) {
+        mode = 'idle';
+        canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+        updateStatus('idle', 'IDLE. AWAITING INPUT.');
+        currentShape = "Unknown";
+        currentGender = "unknown";
+        resultShapeName.textContent = "---";
+        resultGenderName.textContent = "---";
+        resultGenderProb.textContent = "CONF: --%";
+        resultShapeDesc.textContent = "Awaiting analysis data.";
+        metricLength.textContent = "--";
+        metricWidth.textContent = "--";
+        metricJaw.textContent = "--";
+        metricForehead.textContent = "--";
+        updateHairstyles("Unknown", "unknown");
+    } else {
+        mode = 'snapshot';
+        updateStatus('success', 'ANALYSIS COMPLETE. SNAPSHOT SAVED.');
+
+        // Freeze the last frame as an image element!
+        imageElement.src = canvasElement.toDataURL('image/png');
+        imageElement.style.display = 'block';
+        videoElement.style.display = 'none';
+        viewport.classList.add('is-image');
+    }
 }
 
 // Listeners

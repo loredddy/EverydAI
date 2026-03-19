@@ -518,6 +518,16 @@ const state = {
     dragStartY: 0,
     panStartX: 0,
     panStartY: 0,
+    // Audio & 3D
+    audioReactive: false,
+    audioCtx: null,
+    analyser: null,
+    dataArray: null,
+    stream: null,
+    tiltX: 0,
+    tiltY: 0,
+    tiltZ: 0,
+    audioAmp: 0
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -612,10 +622,24 @@ function render(animOffset = 0) {
         ctx.shadowBlur = 0;
     }
 
+    // Audio Reactivity
+    if (state.audioReactive && state.analyser && state.dataArray) {
+        state.analyser.getByteFrequencyData(state.dataArray);
+        let sum = 0;
+        const limit = Math.min(60, state.dataArray.length); // Low / Mid bands
+        for (let i = 0; i < limit; i++) {
+            sum += state.dataArray[i];
+        }
+        state.audioAmp = sum / limit; // 0-255
+    } else {
+        state.audioAmp *= 0.9; // Decay if disconnected
+    }
+
     // Draw pattern parameters object
-    const freqA = state.freqA + Math.sin(animOffset * 0.7) * (state.animating ? 1.5 : 0);
-    const freqB = state.freqB + Math.cos(animOffset * 0.5) * (state.animating ? 1.5 : 0);
-    const amp = state.amplitude + Math.sin(animOffset * 0.3) * (state.animating ? 0.15 : 0);
+    const audioScale = state.audioAmp / 255;
+    const freqA = state.freqA + Math.sin(animOffset * 0.7) * (state.animating ? 1.5 : 0) + (audioScale * 3);
+    const freqB = state.freqB + Math.cos(animOffset * 0.5) * (state.animating ? 1.5 : 0) + (audioScale * 3);
+    const amp = state.amplitude + Math.sin(animOffset * 0.3) * (state.animating ? 0.15 : 0) + (audioScale * 0.5);
 
     const params = {
         freqA: Math.max(1, freqA),
@@ -648,6 +672,12 @@ function render(animOffset = 0) {
     // Grain overlay (grunge preset)
     if (preset.grainAlpha > 0) {
         applyGrain(ctx, preset.grainAlpha * 0.4, mulberry32(state.seed + 777));
+    }
+
+    // Continuous rendering if Audio is active
+    if (state.audioReactive && !state.animating) {
+        if (state.animFrame) cancelAnimationFrame(state.animFrame);
+        state.animFrame = requestAnimationFrame(() => render(animOffset + 0.016));
     }
 }
 
@@ -809,7 +839,26 @@ function syncUIFromState() {
     updateSliderVal('line-weight', state.lineWeight);
     updateSliderVal('opacity', state.opacity);
 
+    // 3D & Audio Update
+    updateSliderVal('tilt-x', state.tiltX);
+    updateSliderVal('tilt-y', state.tiltY);
+    updateSliderVal('tilt-z', state.tiltZ);
+    if (document.getElementById('audio-reactive')) {
+        document.getElementById('audio-reactive').checked = state.audioReactive;
+    }
+    update3DTransform();
+
     document.getElementById('active-pattern-label').textContent = getPatternLabel(state.pattern);
+}
+
+function update3DTransform() {
+    const stage = document.getElementById('stage');
+    if (stage && canvas) {
+        stage.style.perspective = '800px';
+        canvas.style.transform = `rotateX(${state.tiltX}deg) rotateY(${state.tiltY}deg) rotateZ(${state.tiltZ}deg) scale(1.15)`;
+        canvas.style.transition = 'transform 0.1s ease-out';
+        canvas.style.transformStyle = 'preserve-3d';
+    }
 }
 
 function getPatternLabel(p) {
@@ -945,6 +994,45 @@ function init() {
     document.getElementById('color-palette').addEventListener('change', (e) => {
         state.palette = e.target.value;
         if (!state.animating) render();
+    });
+
+    // 3D Tilt
+    wireRange('tilt-x', 'tiltX', parseFloat);
+    wireRange('tilt-y', 'tiltY', parseFloat);
+    wireRange('tilt-z', 'tiltZ', parseFloat);
+    ['tilt-x', 'tilt-y', 'tilt-z'].forEach(id => {
+        document.getElementById(id).addEventListener('input', update3DTransform);
+    });
+
+    // Audio Reactive Toggle
+    document.getElementById('audio-reactive').addEventListener('change', async (e) => {
+        state.audioReactive = e.target.checked;
+        if (state.audioReactive) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                state.stream = stream;
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const analyser = audioCtx.createAnalyser();
+                const source = audioCtx.createMediaStreamSource(stream);
+                source.connect(analyser);
+                analyser.fftSize = 256;
+                state.audioCtx = audioCtx;
+                state.analyser = analyser;
+                state.dataArray = new Uint8Array(analyser.frequencyBinCount);
+                if (!state.animating) render(); // Kickoff render loop
+                showToast('🎤 Audio tracking enabled');
+            } catch (err) {
+                console.error("Audio init error", err);
+                state.audioReactive = false;
+                e.target.checked = false;
+                showToast('✕ Microphone access denied');
+            }
+        } else {
+            if (state.stream) state.stream.getTracks().forEach(t => t.stop());
+            if (state.audioCtx) state.audioCtx.close();
+            state.audioAmp = 0;
+            showToast('🔇 Audio tracking disabled');
+        }
     });
 
     // Preset pills

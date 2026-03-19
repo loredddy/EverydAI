@@ -197,6 +197,59 @@
                 </div>
             </div>
 
+            <!-- Audio & 3D Synthesis -->
+            <div class="control-group">
+                <label class="group-label">Audio & 3D Synthesis</label>
+
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                    <span class="slider-label" style="color: var(--accent-a); font-weight: 600;">Audio Reactive</span>
+                    <label class="switch" style="position: relative; display: inline-block; width: 34px; height: 20px;">
+                        <input type="checkbox" id="audio-reactive" style="opacity: 0; width: 0; height: 0;">
+                        <span class="slider round"
+                            style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #333; transition: .4s; border-radius: 34px;"></span>
+                        <style>
+                            .switch input:checked+.slider {
+                                background-color: var(--accent-a);
+                            }
+
+                            .switch .slider:before {
+                                position: absolute;
+                                content: "";
+                                height: 14px;
+                                width: 14px;
+                                left: 3px;
+                                bottom: 3px;
+                                background-color: white;
+                                transition: .4s;
+                                border-radius: 50%;
+                            }
+
+                            .switch input:checked+.slider:before {
+                                transform: translateX(14px);
+                            }
+                        </style>
+                    </label>
+                </div>
+
+                <div class="slider-row">
+                    <span class="slider-label">Tilt X</span>
+                    <input type="range" id="tilt-x" class="styled-range" min="-90" max="90" step="1" value="0" />
+                    <span class="slider-val" id="tilt-x-val">0</span>
+                </div>
+
+                <div class="slider-row">
+                    <span class="slider-label">Tilt Y</span>
+                    <input type="range" id="tilt-y" class="styled-range" min="-90" max="90" step="1" value="0" />
+                    <span class="slider-val" id="tilt-y-val">0</span>
+                </div>
+
+                <div class="slider-row">
+                    <span class="slider-label">Tilt Z</span>
+                    <input type="range" id="tilt-z" class="styled-range" min="-180" max="180" step="1" value="0" />
+                    <span class="slider-val" id="tilt-z-val">0</span>
+                </div>
+            </div>
+
             <!-- Color Palette -->
             <div class="control-group">
                 <label class="group-label" for="color-palette">Color Palette</label>
