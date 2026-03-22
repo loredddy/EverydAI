@@ -63,21 +63,17 @@
                 </div>
             </div>
 
-            <!-- Pattern Type -->
+            <!-- Visualizer Style -->
             <div class="control-group">
-                <label class="group-label" for="pattern-type">Pattern Type</label>
+                <label class="group-label" for="visualizer-style">Visualizer Style</label>
                 <div class="select-wrap">
-                    <select id="pattern-type" class="styled-select">
-                        <option value="spirograph">Spirograph</option>
-                        <option value="lissajous">Lissajous</option>
-                        <option value="rose">Rose Curve</option>
-                        <option value="flowfield">Flow Field</option>
-                        <option value="truchet">Truchet Tiles</option>
-                        <option value="gridnoise">Grid Noise</option>
-                        <option value="fractal">Fractal Burst</option>
-                        <option value="crosshatch">Crosshatch</option>
-                        <option value="lattice">Lattice</option>
-                        <option value="densehatch">Dense Hatch</option>
+                    <select id="visualizer-style" class="styled-select">
+                        <option value="pulse_ring">Pulse Ring</option>
+                        <option value="sonic_wave">Sonic Wave</option>
+                        <option value="bass_core">Bass Core</option>
+                        <option value="stardust_vortex">Stardust Vortex</option>
+                        <option value="quantum_grid">Quantum Grid</option>
+                        <option value="neon_threads">Neon Threads</option>
                     </select>
                     <svg class="select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none"
                         stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
@@ -87,97 +83,28 @@
                 </div>
             </div>
 
-            <!-- Numeric Controls -->
+            <!-- Audio Reactivity Controls -->
             <div class="control-group">
-                <label class="group-label">Parameters</label>
+                <label class="group-label">Audio Reactivity</label>
 
                 <div class="slider-row">
-                    <span class="slider-label">Freq A</span>
-                    <input type="range" id="freq-a" class="styled-range" min="1" max="20" step="0.5" value="3" />
-                    <span class="slider-val" id="freq-a-val">3</span>
-                </div>
-
-                <div class="slider-row">
-                    <span class="slider-label">Freq B</span>
-                    <input type="range" id="freq-b" class="styled-range" min="1" max="20" step="0.5" value="2" />
-                    <span class="slider-val" id="freq-b-val">2</span>
+                    <span class="slider-label">Sensitivity</span>
+                    <input type="range" id="sensitivity" class="styled-range" min="0.1" max="3" step="0.1"
+                        value="1.5" />
+                    <span class="slider-val" id="sensitivity-val">1.5</span>
                 </div>
 
                 <div class="slider-row">
-                    <span class="slider-label">Amplitude</span>
-                    <input type="range" id="amplitude" class="styled-range" min="0.1" max="1" step="0.01" value="0.8" />
-                    <span class="slider-val" id="amplitude-val">0.8</span>
+                    <span class="slider-label">Smoothing</span>
+                    <input type="range" id="smoothing" class="styled-range" min="0.1" max="0.99" step="0.01"
+                        value="0.8" />
+                    <span class="slider-val" id="smoothing-val">0.8</span>
                 </div>
 
                 <div class="slider-row">
-                    <span class="slider-label">Iterations</span>
-                    <input type="range" id="iterations" class="styled-range" min="50" max="8000" step="50"
-                        value="2000" />
-                    <span class="slider-val" id="iterations-val">2000</span>
-                </div>
-
-                <div class="slider-row">
-                    <span class="slider-label">Density</span>
-                    <input type="range" id="density" class="styled-range" min="1" max="100" step="1" value="40" />
-                    <span class="slider-val" id="density-val">40</span>
-                </div>
-
-                <div class="slider-row">
-                    <span class="slider-label">Seed</span>
-                    <input type="range" id="seed" class="styled-range" min="0" max="9999" step="1" value="42" />
-                    <span class="slider-val" id="seed-val">42</span>
-                </div>
-            </div>
-
-            <!-- Equation field -->
-            <div class="control-group">
-                <div class="eq-label-row">
-                    <label class="group-label" for="equation">Custom Equation
-                        <span class="group-hint"
-                            title="Variables: x, y, t, a, b, i, n. Applied per iteration to modulate the output.">ⓘ</span>
-                    </label>
-                    <button class="btn-rand-eq" id="btn-rand-eq" title="Pick a random equation"
-                        aria-label="Random equation">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                            stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                            <polyline points="16 3 21 3 21 8" />
-                            <line x1="4" y1="20" x2="21" y2="3" />
-                            <polyline points="21 16 21 21 16 21" />
-                            <line x1="15" y1="15" x2="21" y2="21" />
-                        </svg>
-                        Random
-                    </button>
-                </div>
-                <div class="eq-input-wrap">
-                    <input type="text" id="equation" class="eq-input" placeholder="e.g. sin(x*a) + cos(y*b)"
-                        spellcheck="false" autocomplete="off" />
-                    <span class="eq-status" id="eq-status"></span>
-                </div>
-                <p class="eq-hint">Variables: <code>x y t a b i n</code> · Uses JS Math</p>
-            </div>
-
-            <!-- Shape & Style -->
-            <div class="control-group">
-                <label class="group-label" for="shape-type">Shape</label>
-                <div class="select-wrap">
-                    <select id="shape-type" class="styled-select">
-                        <option value="line">Line</option>
-                        <option value="circle">Circle</option>
-                        <option value="polygon">Polygon</option>
-                        <option value="arc">Arc</option>
-                        <option value="dot">Dot</option>
-                    </select>
-                    <svg class="select-arrow" width="12" height="12" viewBox="0 0 24 24" fill="none"
-                        stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
-                        aria-hidden="true">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
-                </div>
-                <!-- Polygon sides — shown only when shape = polygon -->
-                <div class="slider-row poly-sides-row" id="poly-sides-row">
-                    <span class="slider-label">Sides</span>
-                    <input type="range" id="poly-sides" class="styled-range" min="3" max="12" step="1" value="6" />
-                    <span class="slider-val" id="poly-sides-val">6</span>
+                    <span class="slider-label">Bass Boost</span>
+                    <input type="range" id="bass-boost" class="styled-range" min="1" max="5" step="0.1" value="2.0" />
+                    <span class="slider-val" id="bass-boost-val">2.0</span>
                 </div>
             </div>
 
@@ -231,23 +158,6 @@
                     </label>
                 </div>
 
-                <div class="slider-row">
-                    <span class="slider-label">Tilt X</span>
-                    <input type="range" id="tilt-x" class="styled-range" min="-90" max="90" step="1" value="0" />
-                    <span class="slider-val" id="tilt-x-val">0</span>
-                </div>
-
-                <div class="slider-row">
-                    <span class="slider-label">Tilt Y</span>
-                    <input type="range" id="tilt-y" class="styled-range" min="-90" max="90" step="1" value="0" />
-                    <span class="slider-val" id="tilt-y-val">0</span>
-                </div>
-
-                <div class="slider-row">
-                    <span class="slider-label">Tilt Z</span>
-                    <input type="range" id="tilt-z" class="styled-range" min="-180" max="180" step="1" value="0" />
-                    <span class="slider-val" id="tilt-z-val">0</span>
-                </div>
             </div>
 
             <!-- Color Palette -->
@@ -323,14 +233,14 @@
                 <span class="stage-preset-badge" id="active-preset-badge">Abstract</span>
             </div>
 
-            <canvas id="pattern-canvas" title="Drag to pan · Double-click to reset"></canvas>
+            <canvas id="pattern-canvas" title="Drag to rotate 3D · Double-click to reset"></canvas>
             <!-- Pan hint (fades after first drag) -->
             <div class="pan-hint" id="pan-hint" aria-hidden="true">
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                     stroke-linecap="round" stroke-linejoin="round">
                     <path d="M5 9l-3 3 3 3M9 5l3-3 3 3M15 19l-3 3-3-3M19 9l3 3-3 3M2 12h20M12 2v20" />
                 </svg>
-                Drag to pan &nbsp;·&nbsp; Double-click to reset
+                Drag to rotate 3D &nbsp;·&nbsp; Double-click to reset
             </div>
 
             <!-- Render overlay (loading spinner) -->
