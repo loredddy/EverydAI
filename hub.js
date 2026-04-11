@@ -64,7 +64,7 @@ document.addEventListener('keydown', (e) => {
 // ── App Cards ────────────────────────────────────────────────
 const APPS = {
     'card-palette': { src: 'ColorPalette/index.html', name: 'Palette Picker' },
-    'card-pattern': { src: 'PatternGen/index.html', name: 'Pattern Generator' },
+    'card-pattern': { src: 'PatternGen/index.html', name: 'Visual Synthesizer' },
     'card-visage': { src: 'WhatHairstyle/index.html', name: 'What Hairstyle?' }
 };
 
@@ -180,86 +180,76 @@ function animatePatternThumb() {
 
     let t = 0;
     const COLORS = [
-        [124, 107, 245], // Abstract Purple (Lissajous)
-        [240, 114, 182], // Neon Pink (Rose)
-        [99, 255, 213]   // Tech Aqua (Spirograph)
+        [124, 107, 245], // Abstract Purple
+        [240, 114, 182], // Neon Pink
+        [99, 255, 213]   // Tech Aqua
     ];
 
     function drawFrame() {
-        // Soft fade for trails
-        ctx.fillStyle = 'rgba(10,10,15,0.06)';
+        ctx.fillStyle = 'rgba(10,10,15,0.15)';
         ctx.fillRect(0, 0, W, H);
 
-        const cx = W / 2, cy = H / 2;
-        ctx.lineWidth = 1.5;
+        const cx = W / 2, cy = H / 2 + 10;
         ctx.lineJoin = 'round';
+        ctx.lineCap = 'round';
 
-        const duration = 7.0; // seconds per pattern
-        const phase = (t % (duration * 3)) / duration; // 0 to 3
+        // Fake 3D audio circle
+        const numBars = 50;
+        const angleStep = (Math.PI * 2) / numBars;
+        
+        // Simulating bass pump
+        const pump = Math.sin(t * 5) * Math.sin(t * 1.2);
+        const beat = Math.max(0, pump) * 15;
+        const radius = H * 0.25 + beat;
 
-        const getAlpha = (p, target) => {
-            let dist = Math.abs(p - target);
-            if (dist > 1.5) dist = 3 - dist;
-            return Math.max(0, 1 - dist * 2); // Fades in/out smoothly
-        };
+        for (let i = 0; i < numBars; i++) {
+            const angle = i * angleStep + t * 0.2;
+            
+            // Simulating frequency data
+            const freq = Math.sin(i * 4 + t * 8) * Math.cos(i * 7 - t * 3) + Math.random() * 0.5;
+            const amp = Math.max(0, freq) * 25 * (1 + beat * 0.05);
+            
+            // 3D projection (pseudo)
+            // rotating ring
+            const x3d = Math.cos(angle) * (radius + amp);
+            const z3d = Math.sin(angle) * (radius + amp);
+            const y3d = (Math.sin(angle * 3 + t * 4) * amp * 0.5) - 20;
 
-        const a0 = getAlpha(phase, 0);
-        const a1 = getAlpha(phase, 1);
-        const a2 = getAlpha(phase, 2);
+            const scale = 300 / (300 + z3d);
+            const sx = cx + x3d * scale;
+            const sy = cy + y3d * scale;
 
-        // 1. Lissajous
-        if (a0 > 0.01) {
-            ctx.beginPath();
-            ctx.strokeStyle = `rgba(${COLORS[0][0]}, ${COLORS[0][1]}, ${COLORS[0][2]}, ${a0 * 0.7})`;
-            const rx = W * 0.42, ry = H * 0.42;
-            const delta = t * 0.6;
-            for (let i = 0; i <= 200; i++) {
-                const theta = (i / 200) * Math.PI * 2;
-                const x = cx + rx * Math.cos(3 * theta + delta);
-                const y = cy + ry * Math.sin(2 * theta);
-                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+            // base point
+            const bx3d = Math.cos(angle) * radius;
+            const bz3d = Math.sin(angle) * radius;
+            const bx = cx + bx3d * scale;
+            const by = cy + 10 * scale; // fixed y for base
+
+            // Color gradient
+            const colorPhase = ((i / numBars) + t * 0.1) % 1;
+            const c0 = COLORS[0], c1 = COLORS[1], c2 = COLORS[2];
+            let r, g, b;
+            if (colorPhase < 0.5) {
+                const p = colorPhase * 2;
+                r = c0[0] + (c1[0] - c0[0]) * p;
+                g = c0[1] + (c1[1] - c0[1]) * p;
+                b = c0[2] + (c1[2] - c0[2]) * p;
+            } else {
+                const p = (colorPhase - 0.5) * 2;
+                r = c1[0] + (c2[0] - c1[0]) * p;
+                g = c1[1] + (c2[1] - c1[1]) * p;
+                b = c1[2] + (c2[2] - c1[2]) * p;
             }
+
+            ctx.beginPath();
+            ctx.moveTo(bx, by);
+            ctx.lineTo(sx, sy);
+            ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.4 + scale * 0.4})`;
+            ctx.lineWidth = scale * 2.5;
             ctx.stroke();
         }
 
-        // 2. Rose Curve
-        if (a1 > 0.01) {
-            ctx.beginPath();
-            ctx.strokeStyle = `rgba(${COLORS[1][0]}, ${COLORS[1][1]}, ${COLORS[1][2]}, ${a1 * 0.7})`;
-            const R = Math.min(W, H) * 0.44;
-            const k = 5;
-            const rot = t * 0.4;
-            const rmod = 0.8 + 0.2 * Math.sin(t * 1.5);
-            for (let i = 0; i <= 300; i++) {
-                const theta = (i / 300) * Math.PI * 2;
-                const r = R * Math.cos(k * theta) * rmod;
-                const x = cx + r * Math.cos(theta + rot);
-                const y = cy + r * Math.sin(theta + rot);
-                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-            }
-            ctx.stroke();
-        }
-
-        // 3. Spirograph
-        if (a2 > 0.01) {
-            ctx.beginPath();
-            ctx.strokeStyle = `rgba(${COLORS[2][0]}, ${COLORS[2][1]}, ${COLORS[2][2]}, ${a2 * 0.7})`;
-            const R = Math.min(W, H) * 0.42;
-            const r = R / 4;
-            const d = r * (1.0 + 0.6 * Math.sin(t * 1.2));
-            const rot = -t * 0.3;
-            for (let i = 0; i <= 300; i++) {
-                const theta = (i / 300) * Math.PI * 2;
-                const pX = (R - r) * Math.cos(theta) + d * Math.cos(((R - r) / r) * theta);
-                const pY = (R - r) * Math.sin(theta) - d * Math.sin(((R - r) / r) * theta);
-                const x = cx + pX * Math.cos(rot) - pY * Math.sin(rot);
-                const y = cy + pX * Math.sin(rot) + pY * Math.cos(rot);
-                if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-            }
-            ctx.stroke();
-        }
-
-        t += 0.015; // Slow, smooth time progression
+        t += 0.02;
         requestAnimationFrame(drawFrame);
     }
 

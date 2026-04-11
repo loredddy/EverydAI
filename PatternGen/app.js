@@ -1,6 +1,6 @@
 /* ──────────────────────────────────────────────────────────────
    Audio Visualizer Hub — app.js
-   EverydAI · NCS & TrapNation style audio reactivity
+   EverydAI · Full 3D Camera + Trippy Visualizers
 ────────────────────────────────────────────────────────────── */
 
 'use strict';
@@ -21,13 +21,14 @@ const PALETTES = {
     },
     fire: (t) => `hsl(${Math.abs(t) * 60},90%,${30 + Math.abs(t) * 40}%)`,
     ice: (t) => `hsl(${200 + Math.abs(t) * 40},${60 + Math.abs(t) * 30}%,${40 + Math.abs(t) * 45}%)`,
+    psychedelic: (t) => `hsl(${(Math.abs(t) * 720 + animOffsetGlobal * 60) % 360},100%,${50 + Math.sin(t * 10) * 20}%)`,
 };
 
 // ── Preset configs ────────────────────────────────────────────
 const PRESETS = {
-    abstract: { bgAlpha: 0.1, neonGlow: false, bgColor: '#09100a' },
-    minimal: { bgAlpha: 0.2, neonGlow: false, bgColor: '#0a110a' },
-    neon: { bgAlpha: 0.1, neonGlow: true, bgColor: '#04040e' },
+    abstract: { bgAlpha: 0.06, neonGlow: false, bgColor: '#09100a' },
+    minimal: { bgAlpha: 0.12, neonGlow: false, bgColor: '#0a110a' },
+    neon: { bgAlpha: 0.04, neonGlow: true, bgColor: '#04040e' },
 };
 
 // ── Data Smoothers ───────────────────────────────────────
@@ -36,296 +37,579 @@ let bassSmooth = 0;
 let particles = [];
 let animOffsetGlobal = 0;
 
-// ── Visualizer Engines ─────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════
+//  3D CAMERA SYSTEM (matplotlib-style orbit camera)
+// ══════════════════════════════════════════════════════════════
+const camera = {
+    azimuth: 0.4,      // horizontal orbit angle (radians)
+    elevation: 0.5,    // vertical orbit angle (radians)
+    distance: 600,     // distance from origin (zoom)
+    fov: 500,          // field of view (perspective strength)
+    minDist: 150,
+    maxDist: 2000,
+};
+
+/**
+ * Project a 3D world point (x, y, z) to 2D screen coords.
+ * Camera orbits around origin at (azimuth, elevation, distance).
+ * Returns { sx, sy, depth } or null if behind camera.
+ */
+function project3D(x, y, z, W, H) {
+    const cosA = Math.cos(camera.azimuth);
+    const sinA = Math.sin(camera.azimuth);
+    const cosE = Math.cos(camera.elevation);
+    const sinE = Math.sin(camera.elevation);
+
+    // Rotate around Y axis (azimuth)
+    const x1 = x * cosA - z * sinA;
+    const z1 = x * sinA + z * cosA;
+    const y1 = y;
+
+    // Rotate around X axis (elevation)
+    const y2 = y1 * cosE - z1 * sinE;
+    const z2 = y1 * sinE + z1 * cosE;
+    const x2 = x1;
+
+    // Translate by camera distance (camera is at distance along Z)
+    const z3 = z2 + camera.distance;
+
+    if (z3 <= 10) return null; // behind camera
+
+    const scale = camera.fov / z3;
+    const sx = W / 2 + x2 * scale;
+    const sy = H / 2 - y2 * scale;
+
+    return { sx, sy, depth: z3, scale };
+}
+
+/** Draw a 3D line segment */
+function line3D(ctx, x1, y1, z1, x2, y2, z2, W, H) {
+    const a = project3D(x1, y1, z1, W, H);
+    const b = project3D(x2, y2, z2, W, H);
+    if (!a || !b) return;
+    ctx.beginPath();
+    ctx.moveTo(a.sx, a.sy);
+    ctx.lineTo(b.sx, b.sy);
+    ctx.stroke();
+}
+
+// ── Visualizer Engines (TRUE 3D) ──────────────────────────────
 const VISUALIZERS = {
 
-    // NCS Style: Pulse Ring
+    // ═══════ Pulse Ring — orbiting 3D ring ═══════
     pulse_ring(ctx, W, H, dataArray, colorFn, params) {
-        const cx = W / 2, cy = H / 2;
-        const baseRadius = Math.min(W, H) * 0.20;
         const beatDrop = bassSmooth * params.bassBoost * params.sensitivity;
-        const r = baseRadius + beatDrop * 0.3; // Core circle expands on beat
+        const baseRadius = 120 + beatDrop * 0.4;
 
-        // Draw Core Circle Outline
-        ctx.beginPath();
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.strokeStyle = colorFn(bassSmooth / 255);
-        ctx.lineWidth = params.lineWeight * 2;
-        ctx.stroke();
+        if (!dataArray || dataArray.length === 0) {
+            // Static ring
+            const numPts = 80;
+            for (let i = 0; i < numPts; i++) {
+                const a1 = (i / numPts) * Math.PI * 2;
+                const a2 = ((i + 1) / numPts) * Math.PI * 2;
+                ctx.strokeStyle = colorFn(i / numPts + animOffsetGlobal * 0.1);
+                ctx.lineWidth = params.lineWeight * 2;
+                line3D(ctx,
+                    Math.cos(a1) * baseRadius, 0, Math.sin(a1) * baseRadius,
+                    Math.cos(a2) * baseRadius, 0, Math.sin(a2) * baseRadius,
+                    W, H);
+            }
+            return;
+        }
 
-        if (!dataArray || dataArray.length === 0) return;
-
-        const numBars = 120; // How many bars around the circle
-        const barWidth = (2 * Math.PI * r) / numBars * 0.6;
+        const numBars = 120;
         const angleStep = (Math.PI * 2) / numBars;
 
-        ctx.lineCap = 'round';
-
+        // Draw the ring with frequency spikes going outward in 3D
         for (let i = 0; i < numBars; i++) {
-            // Map the bar index to the frequency data array symmetrically
-            // so low frequencies are at the bottom, highs at the top
             const mirroredIndex = i > numBars / 2 ? numBars - i : i;
-            // Map [0, numBars/2] to [0, ~80] (meaningful frequencies)
             const dataIndex = Math.floor((mirroredIndex / (numBars / 2)) * 80);
-
-            // Apply smoothing
             const val = dataArray[dataIndex] || 0;
-            smoothedData[i] += (val - smoothedData[i]) * 0.2; // visual lerp
-
-            // Bass boost for lower indexes
+            smoothedData[i] += (val - smoothedData[i]) * 0.2;
             const boost = (dataIndex < 10) ? params.bassBoost : 1;
-            const amp = smoothedData[i] * params.sensitivity * boost * (H / 800);
+            const amp = smoothedData[i] * params.sensitivity * boost * 0.8;
 
-            const angle = (i * angleStep) + Math.PI / 2; // Start bottom
+            const angle = i * angleStep;
+            const x1 = Math.cos(angle) * baseRadius;
+            const z1 = Math.sin(angle) * baseRadius;
+            const x2 = Math.cos(angle) * (baseRadius + amp);
+            const z2 = Math.sin(angle) * (baseRadius + amp);
 
-            const x1 = cx + (r + 4) * Math.cos(angle);
-            const y1 = cy + (r + 4) * Math.sin(angle);
-            const x2 = cx + (r + 4 + amp) * Math.cos(angle);
-            const y2 = cy + (r + 4 + amp) * Math.sin(angle);
+            // Add vertical oscillation for trippiness
+            const yOsc = Math.sin(angle * 3 + animOffsetGlobal * 3) * amp * 0.3;
 
-            ctx.beginPath();
-            ctx.moveTo(x1, y1);
-            ctx.lineTo(x2, y2);
-            ctx.lineWidth = Math.max(2, barWidth);
             ctx.strokeStyle = colorFn(i / numBars + animOffsetGlobal * 0.05);
-            ctx.stroke();
+            ctx.lineWidth = Math.max(2, params.lineWeight * 2);
+            ctx.globalAlpha = params.opacity;
+            line3D(ctx, x1, yOsc * 0.3, z1, x2, yOsc, z2, W, H);
+        }
+
+        // Inner pulsing circle at different height
+        const innerR = baseRadius * 0.4;
+        const numPts = 60;
+        for (let i = 0; i < numPts; i++) {
+            const a1 = (i / numPts) * Math.PI * 2;
+            const a2 = ((i + 1) / numPts) * Math.PI * 2;
+            const yOff = Math.sin(animOffsetGlobal * 2) * 30;
+            ctx.strokeStyle = colorFn(i / numPts + 0.5);
+            ctx.lineWidth = params.lineWeight;
+            ctx.globalAlpha = params.opacity * 0.6;
+            line3D(ctx,
+                Math.cos(a1) * innerR, yOff, Math.sin(a1) * innerR,
+                Math.cos(a2) * innerR, yOff, Math.sin(a2) * innerR,
+                W, H);
         }
     },
 
-    // SoundCloud Style: Sonic Wave
+    // ═══════ Sonic Wave — 3D waveform ribbon ═══════
     sonic_wave(ctx, W, H, dataArray, colorFn, params) {
         if (!dataArray || dataArray.length === 0) return;
 
         const numBars = Math.min(dataArray.length, 100);
-        const padding = W * 0.1;
-        const drawWidth = W - (padding * 2);
-        const barSpacing = drawWidth / numBars;
-        const barWidth = Math.max(1, barSpacing * 0.7);
-        const cy = H / 2;
+        const spread = 400;
 
-        ctx.lineCap = 'miter';
+        // Draw multiple wave layers at different depths for trippy depth
+        for (let layer = 0; layer < 5; layer++) {
+            const zOff = (layer - 2) * 80;
+            const phaseOff = layer * 0.4 + animOffsetGlobal * 1.5;
 
-        for (let i = 0; i < numBars; i++) {
-            const val = dataArray[i] || 0;
-            smoothedData[i] += (val - smoothedData[i]) * 0.3;
+            for (let i = 0; i < numBars - 1; i++) {
+                const val = dataArray[i] || 0;
+                smoothedData[i] += (val - smoothedData[i]) * 0.3;
+                const boost = (i < 10) ? params.bassBoost : 1;
+                const amp = smoothedData[i] * params.sensitivity * boost * 0.5;
 
-            const boost = (i < 10) ? params.bassBoost : 1;
-            const amp = smoothedData[i] * params.sensitivity * boost * (H / 400);
+                const x1 = (i / numBars - 0.5) * spread;
+                const x2 = ((i + 1) / numBars - 0.5) * spread;
+                const y1 = amp * Math.sin(i * 0.3 + phaseOff);
+                const y2 = (dataArray[i + 1] || 0) * params.sensitivity * boost * 0.5 * Math.sin((i + 1) * 0.3 + phaseOff);
 
-            const x = padding + (i * barSpacing);
-            const y1 = cy - (amp / 2);
-            const y2 = cy + (amp / 2);
-
-            ctx.beginPath();
-            ctx.moveTo(x, y1);
-            ctx.lineTo(x, y2);
-            ctx.lineWidth = barWidth;
-            ctx.strokeStyle = colorFn(i / numBars);
-            ctx.stroke();
+                ctx.strokeStyle = colorFn(i / numBars + layer * 0.15);
+                ctx.lineWidth = params.lineWeight * (1 + layer * 0.3);
+                ctx.globalAlpha = params.opacity * (1 - layer * 0.15);
+                line3D(ctx, x1, y1, zOff, x2, y2, zOff, W, H);
+            }
         }
     },
 
-    // TrapNation Style: Bass Core
+    // ═══════ Bass Core — 3D geometry that pulses ═══════
     bass_core(ctx, W, H, dataArray, colorFn, params) {
-        const cx = W / 2, cy = H / 2;
         const beatDrop = bassSmooth * params.bassBoost * params.sensitivity;
         const scale = 1 + (beatDrop / 500);
+        const r = 100 * scale;
 
-        // --- Render Background Particles First ---
-        // Spawn particles heavily on strong beats
+        // Spawn 3D particles
         if (beatDrop > 100 && Math.random() > 0.5) {
-            for (let p = 0; p < 3; p++) {
+            for (let p = 0; p < 4; p++) {
+                const a = Math.random() * Math.PI * 2;
+                const e = (Math.random() - 0.5) * Math.PI;
                 particles.push({
-                    x: cx, y: cy,
-                    vx: (Math.random() - 0.5) * 10 * scale,
-                    vy: (Math.random() - 0.5) * 10 * scale,
+                    x: 0, y: 0, z: 0,
+                    vx: Math.cos(a) * Math.cos(e) * 6 * scale,
+                    vy: Math.sin(e) * 6 * scale,
+                    vz: Math.sin(a) * Math.cos(e) * 6 * scale,
                     life: 1.0,
                     color: colorFn(Math.random())
                 });
             }
         }
 
-        // Update & Draw Particles
+        // Update & Draw 3D Particles
         for (let i = particles.length - 1; i >= 0; i--) {
             let p = particles[i];
-            p.x += p.vx;
-            p.y += p.vy;
-            p.life -= 0.01;
+            p.x += p.vx; p.y += p.vy; p.z += p.vz;
+            p.life -= 0.012;
             if (p.life <= 0) {
                 particles.splice(i, 1);
             } else {
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, Math.max(1, p.life * 4), 0, Math.PI * 2);
-                ctx.fillStyle = p.color;
-                ctx.globalAlpha = p.life * params.opacity;
-                ctx.fill();
+                const proj = project3D(p.x, p.y, p.z, W, H);
+                if (proj) {
+                    ctx.beginPath();
+                    ctx.arc(proj.sx, proj.sy, Math.max(1, p.life * 4 * proj.scale * 0.15), 0, Math.PI * 2);
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.life * params.opacity;
+                    ctx.fill();
+                }
             }
         }
 
         ctx.globalAlpha = params.opacity;
 
-        // --- Render Core Geometric Logo ---
-        const r = Math.min(W, H) * 0.15 * scale;
-        const n = 6; // Hexagon
-
-        ctx.beginPath();
-        for (let i = 0; i <= n; i++) {
-            const angle = (i / n) * Math.PI * 2 - Math.PI / 2;
-            const px = cx + r * Math.cos(angle);
-            const py = cy + r * Math.sin(angle);
-            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        // 3D rotating hexagon
+        const n = 6;
+        const rot = animOffsetGlobal * 0.5;
+        for (let i = 0; i < n; i++) {
+            const a1 = (i / n) * Math.PI * 2 + rot;
+            const a2 = ((i + 1) / n) * Math.PI * 2 + rot;
+            ctx.strokeStyle = colorFn(bassSmooth / 255 + i / n);
+            ctx.lineWidth = params.lineWeight * 3;
+            line3D(ctx,
+                Math.cos(a1) * r, 0, Math.sin(a1) * r,
+                Math.cos(a2) * r, 0, Math.sin(a2) * r,
+                W, H);
         }
-        ctx.closePath();
 
-        ctx.lineWidth = params.lineWeight * 3;
-        ctx.strokeStyle = colorFn(bassSmooth / 255);
-        ctx.stroke();
-
-        // Small inner triangle
-        ctx.beginPath();
-        for (let i = 0; i <= 3; i++) {
-            const angle = (i / 3) * Math.PI * 2 - Math.PI / 2;
-            const px = cx + (r * 0.4) * Math.cos(angle);
-            const py = cy + (r * 0.4) * Math.sin(angle);
-            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        // Inner 3D triangle at a different Y level
+        const innerR = r * 0.4;
+        const yOff = Math.sin(animOffsetGlobal) * 40;
+        for (let i = 0; i < 3; i++) {
+            const a1 = (i / 3) * Math.PI * 2 + rot * 1.5;
+            const a2 = ((i + 1) / 3) * Math.PI * 2 + rot * 1.5;
+            ctx.strokeStyle = colorFn((bassSmooth / 255) + 0.5);
+            ctx.lineWidth = params.lineWeight * 2;
+            line3D(ctx,
+                Math.cos(a1) * innerR, yOff, Math.sin(a1) * innerR,
+                Math.cos(a2) * innerR, yOff, Math.sin(a2) * innerR,
+                W, H);
         }
-        ctx.closePath();
-        ctx.fillStyle = colorFn((bassSmooth / 255) + 0.5);
-        ctx.fill();
+
+        // Vertical pillars connecting hex to triangle
+        for (let i = 0; i < 3; i++) {
+            const a = (i / 3) * Math.PI * 2 + rot;
+            ctx.strokeStyle = colorFn(i / 3);
+            ctx.lineWidth = params.lineWeight;
+            ctx.globalAlpha = params.opacity * 0.4;
+            line3D(ctx,
+                Math.cos(a) * r, 0, Math.sin(a) * r,
+                Math.cos(a + rot * 0.5) * innerR, yOff, Math.sin(a + rot * 0.5) * innerR,
+                W, H);
+        }
     },
 
-    // Stardust Vortex
+    // ═══════ Stardust Vortex — 3D spiraling galaxy ═══════
     stardust_vortex(ctx, W, H, dataArray, colorFn, params) {
-        const cx = W / 2, cy = H / 2;
         const beatDrop = bassSmooth * params.bassBoost * params.sensitivity;
         const scale = 1 + (beatDrop / 400);
 
-        if (beatDrop > 50 && Math.random() > 0.4) {
-            for (let p = 0; p < 4; p++) {
+        // Spawn particles in spiral pattern
+        if (beatDrop > 30 && Math.random() > 0.3) {
+            for (let p = 0; p < 5; p++) {
                 const angle = Math.random() * Math.PI * 2;
-                const dist = Math.random() * 50;
+                const elevation = (Math.random() - 0.5) * 0.5;
+                const dist = 20 + Math.random() * 30;
                 particles.push({
-                    x: cx + Math.cos(angle) * dist,
-                    y: cy + Math.sin(angle) * dist,
-                    vx: Math.cos(angle) * 2 * scale,
-                    vy: Math.sin(angle) * 2 * scale,
+                    x: Math.cos(angle) * dist,
+                    y: Math.sin(elevation) * dist * 0.3,
+                    z: Math.sin(angle) * dist,
+                    vx: Math.cos(angle) * 1.5 * scale,
+                    vy: (Math.random() - 0.5) * 1.5,
+                    vz: Math.sin(angle) * 1.5 * scale,
                     angle: angle,
+                    spin: (Math.random() - 0.5) * 0.08,
                     life: 1.0,
                     color: colorFn(Math.random())
                 });
             }
         }
 
-        ctx.globalAlpha = params.opacity;
+        // Update & Draw 3D spiraling particles
         for (let i = particles.length - 1; i >= 0; i--) {
             let p = particles[i];
 
-            p.angle += 0.05;
-            p.vx += Math.cos(p.angle) * 0.5;
-            p.vy += Math.sin(p.angle) * 0.5;
+            // Spiral motion
+            p.angle += p.spin || 0.03;
+            const dist = Math.sqrt(p.x * p.x + p.z * p.z);
+            p.vx = Math.cos(p.angle) * (1 + dist * 0.005) * scale;
+            p.vz = Math.sin(p.angle) * (1 + dist * 0.005) * scale;
+            p.vy *= 0.98;
 
             p.x += p.vx;
             p.y += p.vy;
-            p.life -= 0.008;
+            p.z += p.vz;
+            p.life -= 0.005;
 
             if (p.life <= 0) {
                 particles.splice(i, 1);
             } else {
-                ctx.beginPath();
-                ctx.arc(p.x, p.y, Math.max(1, p.life * 5), 0, Math.PI * 2);
-                ctx.fillStyle = p.color;
-                ctx.globalAlpha = p.life * params.opacity;
-                ctx.fill();
+                const proj = project3D(p.x, p.y, p.z, W, H);
+                if (proj) {
+                    const size = Math.max(1, p.life * 5 * proj.scale * 0.12);
+                    ctx.beginPath();
+                    ctx.arc(proj.sx, proj.sy, size, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.life * params.opacity;
+                    ctx.fill();
+
+                    // Glow trail
+                    if (p.life > 0.3) {
+                        ctx.beginPath();
+                        ctx.arc(proj.sx, proj.sy, size * 3, 0, Math.PI * 2);
+                        ctx.fillStyle = p.color;
+                        ctx.globalAlpha = p.life * params.opacity * 0.1;
+                        ctx.fill();
+                    }
+                }
             }
         }
+
+        // Central axis lines for reference
+        ctx.globalAlpha = params.opacity * 0.15;
+        ctx.strokeStyle = colorFn(0.5);
+        ctx.lineWidth = 1;
+        line3D(ctx, -200, 0, 0, 200, 0, 0, W, H);
+        line3D(ctx, 0, -200, 0, 0, 200, 0, W, H);
+        line3D(ctx, 0, 0, -200, 0, 0, 200, W, H);
     },
 
-    // Quantum Grid
+    // ═══════ Quantum Grid — true 3D surface mesh ═══════
     quantum_grid(ctx, W, H, dataArray, colorFn, params) {
         if (!dataArray || dataArray.length === 0) return;
 
-        const cx = W / 2, cy = H / 2;
-        const gridSize = 12;
-        const spacing = Math.min(W, H) / 15;
+        const gridSize = 15;
+        const spacing = 25;
+        const halfGrid = gridSize / 2;
 
         ctx.lineWidth = params.lineWeight;
 
-        for (let x = -gridSize; x <= gridSize; x++) {
-            for (let y = -gridSize; y <= gridSize; y++) {
-                const i = Math.floor(Math.abs(x * y) % dataArray.length);
+        // Build height values from audio data
+        for (let gx = -halfGrid; gx <= halfGrid; gx++) {
+            for (let gz = -halfGrid; gz <= halfGrid; gz++) {
+                const i = Math.floor((Math.abs(gx * 3 + gz * 7) + 1) % dataArray.length);
                 const val = dataArray[i] || 0;
                 smoothedData[i] += (val - smoothedData[i]) * 0.2;
 
                 const boost = (i < 10) ? params.bassBoost : 1;
-                const amp = smoothedData[i] * params.sensitivity * boost * (H / 2000);
+                const amp = smoothedData[i] * params.sensitivity * boost * 0.4;
 
-                const px = cx + x * spacing * (1 + amp);
-                const py = cy + y * spacing * (1 + amp);
+                // Height = audio amplitude + sine wave for trippy terrain
+                const wx = gx * spacing;
+                const wz = gz * spacing;
+                const terrainWave = Math.sin(gx * 0.5 + animOffsetGlobal * 2) *
+                    Math.cos(gz * 0.5 + animOffsetGlobal * 1.5) * 30;
+                const wy = amp + terrainWave;
 
-                if (x < gridSize) {
-                    const nx = cx + (x + 1) * spacing * (1 + amp);
-                    const ny = cy + y * spacing * (1 + amp);
-                    ctx.beginPath();
-                    ctx.moveTo(px, py);
-                    ctx.lineTo(nx, ny);
-                    ctx.strokeStyle = colorFn((x + gridSize) / (gridSize * 2) + animOffsetGlobal * 0.1);
-                    ctx.globalAlpha = params.opacity * (1 - (Math.abs(x) + Math.abs(y)) / (gridSize * 2));
-                    ctx.stroke();
+                // Draw grid lines
+                if (gx < halfGrid) {
+                    const ni = Math.floor((Math.abs((gx + 1) * 3 + gz * 7) + 1) % dataArray.length);
+                    const nval = dataArray[ni] || 0;
+                    smoothedData[ni] += (nval - smoothedData[ni]) * 0.2;
+                    const nboost = (ni < 10) ? params.bassBoost : 1;
+                    const namp = smoothedData[ni] * params.sensitivity * nboost * 0.4;
+                    const nTerrainWave = Math.sin((gx + 1) * 0.5 + animOffsetGlobal * 2) *
+                        Math.cos(gz * 0.5 + animOffsetGlobal * 1.5) * 30;
+                    const nx = (gx + 1) * spacing;
+                    const ny = namp + nTerrainWave;
+
+                    const distFromCenter = Math.sqrt(gx * gx + gz * gz) / halfGrid;
+                    ctx.strokeStyle = colorFn((gx + halfGrid) / gridSize + animOffsetGlobal * 0.05);
+                    ctx.globalAlpha = params.opacity * Math.max(0.1, 1 - distFromCenter * 0.6);
+                    line3D(ctx, wx, wy, wz, nx, ny, wz, W, H);
                 }
-                if (y < gridSize) {
-                    const nx = cx + x * spacing * (1 + amp);
-                    const ny = cy + (y + 1) * spacing * (1 + amp);
-                    ctx.beginPath();
-                    ctx.moveTo(px, py);
-                    ctx.lineTo(nx, ny);
-                    ctx.strokeStyle = colorFn((y + gridSize) / (gridSize * 2) + animOffsetGlobal * 0.1);
-                    ctx.globalAlpha = params.opacity * (1 - (Math.abs(x) + Math.abs(y)) / (gridSize * 2));
-                    ctx.stroke();
+                if (gz < halfGrid) {
+                    const ni = Math.floor((Math.abs(gx * 3 + (gz + 1) * 7) + 1) % dataArray.length);
+                    const nval = dataArray[ni] || 0;
+                    smoothedData[ni] += (nval - smoothedData[ni]) * 0.2;
+                    const nboost = (ni < 10) ? params.bassBoost : 1;
+                    const namp = smoothedData[ni] * params.sensitivity * nboost * 0.4;
+                    const nTerrainWave = Math.sin(gx * 0.5 + animOffsetGlobal * 2) *
+                        Math.cos((gz + 1) * 0.5 + animOffsetGlobal * 1.5) * 30;
+                    const nz = (gz + 1) * spacing;
+                    const ny = namp + nTerrainWave;
+
+                    const distFromCenter = Math.sqrt(gx * gx + gz * gz) / halfGrid;
+                    ctx.strokeStyle = colorFn((gz + halfGrid) / gridSize + animOffsetGlobal * 0.05);
+                    ctx.globalAlpha = params.opacity * Math.max(0.1, 1 - distFromCenter * 0.6);
+                    line3D(ctx, wx, wy, wz, wx, ny, nz, W, H);
                 }
             }
         }
     },
 
-    // Neon Threads
+    // ═══════ Neon Threads — 3D tentacles from origin ═══════
     neon_threads(ctx, W, H, dataArray, colorFn, params) {
         if (!dataArray || dataArray.length === 0) return;
 
-        const cx = W / 2, cy = H / 2;
-        const numThreads = 16;
-        const segments = 20;
-        const radius = Math.min(W, H) * 0.4;
+        const numThreads = 12;
+        const segments = 25;
+        const maxReach = 250;
 
         ctx.lineCap = 'round';
         ctx.lineJoin = 'round';
 
         for (let t = 0; t < numThreads; t++) {
-            ctx.beginPath();
-            const angleOffset = (t / numThreads) * Math.PI * 2 + animOffsetGlobal * 0.2;
-            ctx.moveTo(cx, cy);
+            const baseAngle = (t / numThreads) * Math.PI * 2;
+            const baseElevation = Math.sin(t * 1.7) * 0.5;
+
+            let prevProj = project3D(0, 0, 0, W, H);
+            if (!prevProj) continue;
 
             for (let s = 1; s <= segments; s++) {
                 const i = ((t * segments + s) * 2) % dataArray.length;
                 const val = dataArray[i] || 0;
-                smoothedData[i] += (val - smoothedData[i]) * 0.3;
+                smoothedData[i] += (val - smoothedData[i]) * 0.25;
 
                 const boost = (i < 15) ? params.bassBoost : 1;
-                const amp = smoothedData[i] * params.sensitivity * boost * (H / 1000);
+                const amp = smoothedData[i] * params.sensitivity * boost * 0.003;
 
-                const wAngle = angleOffset + Math.sin(s * 0.5 + animOffsetGlobal * 2) * amp;
-                const wDist = (s / segments) * radius;
+                const reach = (s / segments) * maxReach;
+                const wobble = Math.sin(s * 0.8 + animOffsetGlobal * 3 + t) * amp * reach;
+                const yWobble = Math.cos(s * 0.6 + animOffsetGlobal * 2.5 + t * 0.7) * amp * reach;
 
-                const px = cx + Math.cos(wAngle) * wDist;
-                const py = cy + Math.sin(wAngle) * wDist;
+                const angle = baseAngle + wobble;
+                const elev = baseElevation + yWobble * 0.5;
 
-                ctx.lineTo(px, py);
+                const x = Math.cos(angle) * Math.cos(elev) * reach;
+                const y = Math.sin(elev) * reach + Math.sin(s * 0.3 + animOffsetGlobal) * 20;
+                const z = Math.sin(angle) * Math.cos(elev) * reach;
+
+                const proj = project3D(x, y, z, W, H);
+                if (proj && prevProj) {
+                    ctx.beginPath();
+                    ctx.moveTo(prevProj.sx, prevProj.sy);
+                    ctx.lineTo(proj.sx, proj.sy);
+                    ctx.lineWidth = params.lineWeight * (1.5 + (1 - s / segments) * 2);
+                    ctx.strokeStyle = colorFn(t / numThreads + s / segments * 0.3);
+                    ctx.globalAlpha = params.opacity * (1 - (s / segments) * 0.3);
+                    ctx.stroke();
+                }
+                prevProj = proj;
+            }
+        }
+    },
+
+    // ═══════ Fractal Destruction — shape shatters with loud music, rebuilds in silence ═══════
+    fractal_destruction(ctx, W, H, dataArray, colorFn, params) {
+        const beatDrop = bassSmooth * params.bassBoost * params.sensitivity;
+        const intensity = Math.min(beatDrop / 180, 1); // 0 = silence, 1 = full destruction
+
+        // Build an icosphere of triangular faces if not yet built
+        if (!VISUALIZERS._fractalShards || VISUALIZERS._fractalShards.length === 0) {
+            VISUALIZERS._fractalShards = [];
+            const phi = (1 + Math.sqrt(5)) / 2;
+            // Icosahedron vertices
+            const verts = [
+                [-1, phi, 0], [1, phi, 0], [-1, -phi, 0], [1, -phi, 0],
+                [0, -1, phi], [0, 1, phi], [0, -1, -phi], [0, 1, -phi],
+                [phi, 0, -1], [phi, 0, 1], [-phi, 0, -1], [-phi, 0, 1]
+            ].map(v => {
+                const len = Math.sqrt(v[0] ** 2 + v[1] ** 2 + v[2] ** 2);
+                return [v[0] / len * 120, v[1] / len * 120, v[2] / len * 120];
+            });
+
+            const faces = [
+                [0, 11, 5], [0, 5, 1], [0, 1, 7], [0, 7, 10], [0, 10, 11],
+                [1, 5, 9], [5, 11, 4], [11, 10, 2], [10, 7, 6], [7, 1, 8],
+                [3, 9, 4], [3, 4, 2], [3, 2, 6], [3, 6, 8], [3, 8, 9],
+                [4, 9, 5], [2, 4, 11], [6, 2, 10], [8, 6, 7], [9, 8, 1]
+            ];
+
+            // Subdivide each face once for more shards
+            const subdivide = (v0, v1, v2) => {
+                const mid = (a, b) => {
+                    const m = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2];
+                    const len = Math.sqrt(m[0] ** 2 + m[1] ** 2 + m[2] ** 2);
+                    return [m[0] / len * 120, m[1] / len * 120, m[2] / len * 120];
+                };
+                const a = mid(v0, v1), b = mid(v1, v2), c = mid(v0, v2);
+                return [[v0, a, c], [a, v1, b], [c, b, v2], [a, b, c]];
+            };
+
+            for (const f of faces) {
+                const subFaces = subdivide(verts[f[0]], verts[f[1]], verts[f[2]]);
+                for (const sf of subFaces) {
+                    // Center of the triangle
+                    const cx = (sf[0][0] + sf[1][0] + sf[2][0]) / 3;
+                    const cy = (sf[0][1] + sf[1][1] + sf[2][1]) / 3;
+                    const cz = (sf[0][2] + sf[1][2] + sf[2][2]) / 3;
+                    // Direction outward from center
+                    const cLen = Math.sqrt(cx * cx + cy * cy + cz * cz) || 1;
+                    VISUALIZERS._fractalShards.push({
+                        verts: sf.map(v => [...v]),      // home position
+                        home: sf.map(v => [...v]),
+                        dirX: cx / cLen, dirY: cy / cLen, dirZ: cz / cLen,
+                        offset: [0, 0, 0],                // current displacement
+                        velOffset: [0, 0, 0],
+                        rotAngle: 0, rotVel: 0,
+                        colorT: Math.random(),
+                    });
+                }
+            }
+        }
+
+        const shards = VISUALIZERS._fractalShards;
+        const rot = animOffsetGlobal * 0.3; // slow auto-rotation for coolness
+
+        for (let si = 0; si < shards.length; si++) {
+            const s = shards[si];
+
+            // Target displacement: loud = fly outward, quiet = return home
+            const explodeDist = intensity * (250 + Math.sin(si * 0.7) * 100);
+            const targetX = s.dirX * explodeDist;
+            const targetY = s.dirY * explodeDist;
+            const targetZ = s.dirZ * explodeDist;
+
+            // Spring physics: accelerate toward target, dampen
+            const stiffness = intensity > 0.3 ? 0.08 : 0.03; // snappy explosion, gentle return
+            const damping = 0.85;
+            s.velOffset[0] += (targetX - s.offset[0]) * stiffness;
+            s.velOffset[1] += (targetY - s.offset[1]) * stiffness;
+            s.velOffset[2] += (targetZ - s.offset[2]) * stiffness;
+            s.velOffset[0] *= damping;
+            s.velOffset[1] *= damping;
+            s.velOffset[2] *= damping;
+            s.offset[0] += s.velOffset[0];
+            s.offset[1] += s.velOffset[1];
+            s.offset[2] += s.velOffset[2];
+
+            // Tumble rotation when exploded
+            s.rotVel += (intensity * 0.05 - s.rotAngle * 0.001);
+            s.rotVel *= 0.95;
+            s.rotAngle += s.rotVel;
+
+            // Build actual vertex positions
+            const cosR = Math.cos(rot);
+            const sinR = Math.sin(rot);
+            const cosT = Math.cos(s.rotAngle);
+            const sinT = Math.sin(s.rotAngle);
+
+            const projVerts = [];
+            for (const v of s.home) {
+                // Global y-axis rotation
+                let x = v[0] * cosR - v[2] * sinR;
+                let z = v[0] * sinR + v[2] * cosR;
+                let y = v[1];
+
+                // Apply per-shard displacement
+                x += s.offset[0];
+                y += s.offset[1];
+                z += s.offset[2];
+
+                // Per-shard tumble (around the shard's outward axis)
+                if (intensity > 0.05) {
+                    const localX = x - s.offset[0];
+                    const localY = y - s.offset[1];
+                    x = s.offset[0] + localX * cosT - localY * sinT;
+                    y = s.offset[1] + localX * sinT + localY * cosT;
+                }
+
+                const p = project3D(x, y, z, W, H);
+                projVerts.push(p);
             }
 
-            ctx.lineWidth = params.lineWeight * 1.5;
-            ctx.strokeStyle = colorFn(t / numThreads);
-            ctx.globalAlpha = params.opacity;
-            ctx.stroke();
+            if (projVerts[0] && projVerts[1] && projVerts[2]) {
+                ctx.beginPath();
+                ctx.moveTo(projVerts[0].sx, projVerts[0].sy);
+                ctx.lineTo(projVerts[1].sx, projVerts[1].sy);
+                ctx.lineTo(projVerts[2].sx, projVerts[2].sy);
+                ctx.closePath();
+
+                const dist = Math.sqrt(s.offset[0] ** 2 + s.offset[1] ** 2 + s.offset[2] ** 2);
+                const glow = Math.min(1, dist / 200);
+
+                ctx.strokeStyle = colorFn(s.colorT + animOffsetGlobal * 0.05);
+                ctx.lineWidth = params.lineWeight * (1 + glow);
+                ctx.globalAlpha = params.opacity * (0.4 + glow * 0.6);
+                ctx.stroke();
+
+                // Fill with faint color when exploded for visual mass
+                if (glow > 0.2) {
+                    ctx.fillStyle = colorFn(s.colorT + 0.3);
+                    ctx.globalAlpha = params.opacity * glow * 0.15;
+                    ctx.fill();
+                }
+            }
         }
-    }
+    },
 };
 
 // ──────────────────────────────────────────────────────────────
@@ -355,18 +639,13 @@ const state = {
     analyser: null,
     dataArray: null,
     stream: null,
-
-    // 3D Tilt
-    tiltX: 0,
-    tiltY: 0,
-    tiltZ: 0,
 };
 
 // ──────────────────────────────────────────────────────────────
 //  DOM REFS
 // ──────────────────────────────────────────────────────────────
 const canvas = document.getElementById('pattern-canvas');
-const ctx = canvas.getContext('2d');
+const ctx2d = canvas.getContext('2d');
 const sidebar = document.getElementById('sidebar');
 const stageToolbar = document.getElementById('stage-toolbar');
 const toast = document.getElementById('toast');
@@ -385,7 +664,9 @@ function resizeCanvas() {
     canvas.height = h * dpr;
     canvas.style.width = w + 'px';
     canvas.style.height = h + 'px';
-    ctx.scale(dpr, dpr);
+    ctx2d.scale(dpr, dpr);
+    // Remove any lingering CSS transforms from old approach
+    canvas.style.transform = '';
     render();
 }
 
@@ -395,38 +676,34 @@ function resizeCanvas() {
 function render(timestamp = 0) {
     const W = canvas.width / (window.devicePixelRatio || 1);
     const H = canvas.height / (window.devicePixelRatio || 1);
-    animOffsetGlobal += 0.016; // internal steady beat
+    animOffsetGlobal += 0.016;
 
     const preset = PRESETS[state.preset] || PRESETS.abstract;
     const colorFn = PALETTES[state.palette] || PALETTES.spectrum;
     const renderer = VISUALIZERS[state.visualizerStyle];
 
-    // Background fade (for trails)
-    ctx.save();
-    ctx.fillStyle = preset.bgColor;
-    // Lower alpha allows old frames to persist longer, creating trails
-    ctx.globalAlpha = state.animating ? preset.bgAlpha : 1;
-    ctx.fillRect(0, 0, W, H);
-    ctx.restore();
+    // Background fade (trippy trails with low alpha)
+    ctx2d.save();
+    ctx2d.fillStyle = preset.bgColor;
+    ctx2d.globalAlpha = state.animating || state.audioReactive ? preset.bgAlpha : 1;
+    ctx2d.fillRect(0, 0, W, H);
+    ctx2d.restore();
 
     // Neon glow
     if (preset.neonGlow) {
-        ctx.shadowColor = PALETTES.neon(animOffsetGlobal % 1);
-        ctx.shadowBlur = 15;
+        ctx2d.shadowColor = PALETTES.neon(animOffsetGlobal % 1);
+        ctx2d.shadowBlur = 18;
     } else {
-        ctx.shadowBlur = 0;
+        ctx2d.shadowBlur = 0;
     }
 
-    // Capture precise Audio Hardware state
+    // Audio capture
     if (state.audioReactive && state.analyser && state.dataArray) {
         state.analyser.getByteFrequencyData(state.dataArray);
-
         let sum = 0;
-        const limit = Math.min(10, state.dataArray.length); // Super Sub-ass isolated
+        const limit = Math.min(10, state.dataArray.length);
         for (let i = 0; i < limit; i++) sum += state.dataArray[i];
         const rawBass = sum / limit;
-
-        // Manual aggressive lerp for bass punch
         bassSmooth += (rawBass - bassSmooth) * 0.3;
     } else {
         bassSmooth *= 0.9;
@@ -440,17 +717,16 @@ function render(timestamp = 0) {
         lineWeight: state.lineWeight
     };
 
-    ctx.save();
-    ctx.globalAlpha = state.opacity;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+    ctx2d.save();
+    ctx2d.globalAlpha = state.opacity;
+    ctx2d.lineCap = 'round';
+    ctx2d.lineJoin = 'round';
 
     if (renderer) {
-        // Pass the actual raw array directly to the engines
-        renderer(ctx, W, H, state.dataArray, colorFn, params);
+        renderer(ctx2d, W, H, state.dataArray, colorFn, params);
     }
 
-    ctx.restore();
+    ctx2d.restore();
 
     // Loop
     if (state.audioReactive || state.animating) {
@@ -474,16 +750,6 @@ function updateSliderVal(id, val) {
     if (el) el.textContent = parseFloat(val).toFixed(
         ['sensitivity', 'smoothing', 'bass-boost', 'opacity', 'line-weight'].includes(id) ? 2 : 0
     );
-}
-
-function update3DTransform() {
-    const stage = document.getElementById('stage');
-    if (stage && canvas) {
-        stage.style.perspective = '800px';
-        canvas.style.transform = `rotateX(${state.tiltX}deg) rotateY(${state.tiltY}deg) rotateZ(${state.tiltZ}deg) scale(1.15)`;
-        canvas.style.transition = 'transform 0.1s ease-out';
-        canvas.style.transformStyle = 'preserve-3d';
-    }
 }
 
 function exportPNG() {
@@ -514,7 +780,6 @@ function wireRange(id, key, format) {
         state[key] = format ? format(el.value) : parseFloat(el.value);
         updateSliderVal(id, el.value);
 
-        // Update audio context smoothing instantly
         if (key === 'smoothing' && state.analyser) {
             state.analyser.smoothingTimeConstant = state.smoothing;
         }
@@ -531,7 +796,9 @@ function init() {
     wireRange('line-weight', 'lineWeight', parseFloat);
     wireRange('opacity', 'opacity', parseFloat);
 
-    // 3D Tilt (Mouse Drag instead of Sliders)
+    // ──────────────────────────────────────────────────────────
+    //  3D CAMERA CONTROLS (mouse orbit + scroll zoom)
+    // ──────────────────────────────────────────────────────────
     let isDragging = false;
     let lastMouseX = 0;
     let lastMouseY = 0;
@@ -550,30 +817,81 @@ function init() {
         canvas.classList.remove('dragging');
     });
 
-    canvas.addEventListener('dblclick', () => {
-        state.tiltX = 0;
-        state.tiltY = 0;
-        state.tiltZ = 0;
-        update3DTransform();
-        if (!state.animating && !state.audioReactive) render();
-    });
-
+    // Orbit: drag to rotate camera around origin
     window.addEventListener('mousemove', (e) => {
         if (isDragging) {
             const deltaX = e.clientX - lastMouseX;
             const deltaY = e.clientY - lastMouseY;
 
-            state.tiltY += deltaX * 0.5;
-            state.tiltX -= deltaY * 0.5;
+            camera.azimuth += deltaX * 0.008;
+            camera.elevation += deltaY * 0.008;
 
-            state.tiltX = Math.max(-90, Math.min(90, state.tiltX));
+            // Clamp elevation to avoid flipping
+            camera.elevation = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, camera.elevation));
 
             lastMouseX = e.clientX;
             lastMouseY = e.clientY;
 
-            update3DTransform();
             if (!state.animating && !state.audioReactive) render();
         }
+    });
+
+    // Zoom: scroll to move closer or further from origin
+    canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        camera.distance += e.deltaY * 0.8;
+        camera.distance = Math.max(camera.minDist, Math.min(camera.maxDist, camera.distance));
+        if (!state.animating && !state.audioReactive) render();
+    }, { passive: false });
+
+    // Double-click to reset camera
+    canvas.addEventListener('dblclick', () => {
+        camera.azimuth = 0.4;
+        camera.elevation = 0.5;
+        camera.distance = 600;
+        if (!state.animating && !state.audioReactive) render();
+    });
+
+    // Touch support for mobile
+    let lastTouchDist = 0;
+    canvas.addEventListener('touchstart', (e) => {
+        if (e.touches.length === 1) {
+            isDragging = true;
+            lastMouseX = e.touches[0].clientX;
+            lastMouseY = e.touches[0].clientY;
+        } else if (e.touches.length === 2) {
+            lastTouchDist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+        }
+    }, { passive: true });
+
+    canvas.addEventListener('touchmove', (e) => {
+        e.preventDefault();
+        if (e.touches.length === 1 && isDragging) {
+            const dx = e.touches[0].clientX - lastMouseX;
+            const dy = e.touches[0].clientY - lastMouseY;
+            camera.azimuth += dx * 0.008;
+            camera.elevation += dy * 0.008;
+            camera.elevation = Math.max(-Math.PI / 2 + 0.05, Math.min(Math.PI / 2 - 0.05, camera.elevation));
+            lastMouseX = e.touches[0].clientX;
+            lastMouseY = e.touches[0].clientY;
+            if (!state.animating && !state.audioReactive) render();
+        } else if (e.touches.length === 2) {
+            const dist = Math.hypot(
+                e.touches[0].clientX - e.touches[1].clientX,
+                e.touches[0].clientY - e.touches[1].clientY
+            );
+            camera.distance -= (dist - lastTouchDist) * 1.5;
+            camera.distance = Math.max(camera.minDist, Math.min(camera.maxDist, camera.distance));
+            lastTouchDist = dist;
+            if (!state.animating && !state.audioReactive) render();
+        }
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', () => {
+        isDragging = false;
     });
 
     // Selects
@@ -581,8 +899,9 @@ function init() {
     if (visSelect) {
         visSelect.addEventListener('change', (e) => {
             state.visualizerStyle = e.target.value;
-            particles = []; // clear base core particles
-            smoothedData = new Float32Array(256); // reset lerp buffers
+            particles = [];
+            smoothedData = new Float32Array(256);
+            if (VISUALIZERS._fractalShards) VISUALIZERS._fractalShards = [];
             const el = document.getElementById('active-pattern-label');
             if (el) el.textContent = e.target.options[e.target.selectedIndex].text;
             if (!state.animating && !state.audioReactive) render();
@@ -611,7 +930,7 @@ function init() {
                     const source = audioCtx.createMediaStreamSource(stream);
                     source.connect(analyser);
 
-                    analyser.fftSize = 512; // Double fidelity for sharp bands
+                    analyser.fftSize = 512;
                     analyser.smoothingTimeConstant = state.smoothing;
 
                     state.audioCtx = audioCtx;
@@ -619,7 +938,7 @@ function init() {
                     state.dataArray = new Uint8Array(analyser.frequencyBinCount);
 
                     showToast('🎤 Visualizer tracking enabled');
-                    render(); // Kickoff main loop
+                    render();
                 } catch (err) {
                     console.error("Audio init error", err);
                     state.audioReactive = false;
@@ -629,14 +948,13 @@ function init() {
             } else {
                 if (state.stream) state.stream.getTracks().forEach(t => t.stop());
                 if (state.audioCtx) state.audioCtx.close();
-                state.audioAmp = 0;
                 bassSmooth = 0;
                 showToast('🔇 Visualizer tracking disabled');
             }
         });
     }
 
-    // Preset pills wiring
+    // Preset pills
     const pills = document.getElementById('preset-pills');
     if (pills) {
         pills.addEventListener('click', (e) => {
@@ -651,11 +969,9 @@ function init() {
     // Action buttons
     const btnGen = document.getElementById('btn-generate');
     if (btnGen) {
-        // Just trigger a dummy draw if not reacting, otherwise do nothing
         btnGen.addEventListener('click', () => {
             state.animating = true;
             if (!state.animFrame) render();
-            // Automatically turn off animation after 2 sec if just a single "generate" test
             setTimeout(() => { if (!state.audioReactive) state.animating = false; }, 2000);
             showToast('▶ Preview running');
         });
@@ -664,7 +980,7 @@ function init() {
     const btnRandomize = document.getElementById('btn-randomize');
     if (btnRandomize && colSelect && visSelect) {
         btnRandomize.addEventListener('click', () => {
-            const styles = ['pulse_ring', 'sonic_wave', 'bass_core', 'stardust_vortex', 'quantum_grid', 'neon_threads'];
+            const styles = ['pulse_ring', 'sonic_wave', 'bass_core', 'stardust_vortex', 'quantum_grid', 'neon_threads', 'fractal_destruction'];
             const palettes = Object.keys(PALETTES);
             state.visualizerStyle = styles[Math.floor(Math.random() * styles.length)];
             state.palette = palettes[Math.floor(Math.random() * palettes.length)];
@@ -673,6 +989,10 @@ function init() {
             colSelect.value = state.palette;
             const el = document.getElementById('active-pattern-label');
             if (el) el.textContent = visSelect.options[visSelect.selectedIndex].text;
+
+            // Randomize camera angle for extra trip
+            camera.azimuth = Math.random() * Math.PI * 2;
+            camera.elevation = (Math.random() - 0.5) * 1.2;
 
             particles = [];
             showToast('🎲 Randomized!');
@@ -683,7 +1003,9 @@ function init() {
     const btnExport = document.getElementById('btn-export');
     if (btnExport) btnExport.addEventListener('click', exportPNG);
 
-    // Active Sidebar Auto-hide
+    // ──────────────────────────────────────────────────────────
+    //  AUTO-HIDE SIDEBAR
+    // ──────────────────────────────────────────────────────────
     let userToggledSidebar = false;
     let inactivityTimer;
 
